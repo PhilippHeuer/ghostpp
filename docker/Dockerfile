@@ -81,12 +81,13 @@ ENV BOT_SAVEREPLAYS 0
 ENV BOT_REPLAYPATH data/replays
 
 ### the Warcraft 3 version to save replays as
-ENV REPLAY_WAR3VERSION 29
+ENV REPLAY_WAR3VERSION 30
 
 ### the Warcraft 3 build number to save replays as (this is specific to each Warcraft 3 version)
 ###  patch 1.23: 		war3version 23, buildnumber 6058
 ###  patch 1.24 - 1.28: war3version 2X, buildnumber 6059
 ###  patch 1.29: 		war3version 29, buildnumber 6060
+###  patch 1.30: 		war3version 30, buildnumber 6060?
 ENV REPLAY_BUILDNUMBER 6060
 
 ### the bot's virtual host name as it appears in the game lobby
@@ -254,7 +255,7 @@ ENV ADMINGAME_MAP ""
 
 ## LAN CONFIGURATION
 ### the Warcraft 3 version to use when broadcasting LAN games
-ENV LAN_WAR3VERSION 29
+ENV LAN_WAR3VERSION 30
 
 ### the UDP broadcast target
 ###  if this value is blank the bot will try to broadcast LAN games on the default interface which is chosen by your operating system
@@ -350,9 +351,9 @@ RUN echo "Configuration ..." &&\
 	gunzip /opt/ghostpp/GeoIP.dat.gz &&\ 
 	mv /opt/ghostpp/GeoIP.dat /opt/ghostpp/geoip.dat &&\
 	# War3 Data
-	curl -o "/opt/ghostpp/war3/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.29.0/Warcraft%20III.exe?inline=false &&\
-	curl -o "/opt/ghostpp/data/mapcfgs/blizzard.j" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.29.0/Blizzard.j?inline=false &&\
-	curl -o "/opt/ghostpp/data/mapcfgs/common.j" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.29.0/common.j?inline=false &&\
+	curl -o "/opt/ghostpp/war3/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/Warcraft%20III.exe?inline=false &&\
+	curl -o "/opt/ghostpp/data/mapcfgs/blizzard.j" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/Blizzard.j?inline=false &&\
+	curl -o "/opt/ghostpp/data/mapcfgs/common.j" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/common.j?inline=false &&\
 	# Permissions
 	chmod +x /usr/local/bin/ghostpp.sh &&\
 	chmod +x /opt/ghostpp/ghost++
