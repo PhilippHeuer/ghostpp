@@ -353,9 +353,6 @@ RUN echo "Configuration ..." &&\
 	curl -o "/opt/ghostpp/war3/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.29.0/Warcraft%20III.exe?inline=false &&\
 	curl -o "/opt/ghostpp/data/mapcfgs/blizzard.j" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.29.0/Blizzard.j?inline=false &&\
 	curl -o "/opt/ghostpp/data/mapcfgs/common.j" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.29.0/common.j?inline=false &&\
-	mv "/opt/ghostpp/war3/Warcraft III.exe" "/opt/ghostpp/war3/war3.exe" &&\
-	touch /opt/ghostpp/war3/storm.dll &&\
-	touch /opt/ghostpp/war3/game.dll &&\
 	# Permissions
 	chmod +x /usr/local/bin/ghostpp.sh &&\
 	chmod +x /opt/ghostpp/ghost++
