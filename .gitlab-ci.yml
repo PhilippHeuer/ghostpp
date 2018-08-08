@@ -1,0 +1,60 @@
+####
+# GitLab CI
+####
+
+# Image
+image: ubuntu:18.10
+
+services:
+  - docker:dind
+
+# Stages
+stages:
+  - build
+  - publish
+
+# Build
+Assemble:
+  stage: build
+  artifacts:
+    paths:
+      - dist/
+  script:
+  # Packages
+  - apt-get update && apt-get install -y build-essential git libgeoip-dev libgmp-dev zlib1g-dev libbz2-dev libmysqlclient-dev libboost-all-dev gettext-base
+  - ln -s /usr/lib/x86_64-linux-gnu/libmysqlclient.so /usr/lib/x86_64-linux-gnu/libmysqlclient_r.so
+  - mkdir -p dist/lib dist/include dist/config
+  - cp /usr/lib/x86_64-linux-gnu/libmysqlclient.so dist/lib
+  # BNCSUtil
+  - cd bncsutil/src/bncsutil && make && make install
+  - cd $CI_PROJECT_DIR
+  - cp /usr/lib/libbncsutil.so dist/lib
+  # StormLib
+  - cd StormLib/stormlib/ && make && make install
+  - cd $CI_PROJECT_DIR
+  - cp /usr/local/lib/libStorm.so dist/lib
+  - cp /usr/local/include/StormLib/StormLib.h dist/include
+  - cp /usr/local/include/StormLib/StormPort.h dist/include
+  # GhostPP
+  - cd ghost/ && make
+  - cd $CI_PROJECT_DIR
+  - cp ghost/ghost++ dist
+  - cp config/* dist/config
+
+Docker Container:
+  image: docker:stable
+  stage: publish
+  script:
+  # copy artifacts
+  - cp dist/ghost++ docker/rootfs/opt/ghostpp/ghost++
+  - cp dist/lib/libbncsutil.so docker/rootfs/usr/lib
+  - cp dist/lib/libStorm.so docker/rootfs/usr/local/lib
+  - cp dist/config/* docker/rootfs/opt/ghostpp
+  # registry
+  # - gitlab
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+  # build container
+  - cd docker
+  - docker build -t $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_REF_NAME .
+  # publish container
+  - docker push $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_REF_NAME
