@@ -21,21 +21,34 @@ Assemble:
       - dist/
   script:
   # Packages
-  - apt-get update && apt-get install -y build-essential git libgeoip-dev libgmp-dev zlib1g-dev libbz2-dev libmysqlclient-dev libboost-all-dev gettext-base
+  - apt-get update && apt-get install -y build-essential git libgeoip-dev libgmp-dev zlib1g-dev libmysqlclient-dev libboost-all-dev gettext-base
   - ln -s /usr/lib/x86_64-linux-gnu/libmysqlclient.so /usr/lib/x86_64-linux-gnu/libmysqlclient_r.so
-  - mkdir -p dist/lib dist/include dist/config
+  - mkdir -p dist/lib dist/include dist/include/stormlib dist/config
   - cp /usr/lib/x86_64-linux-gnu/libmysqlclient.so dist/lib
-  # BNCSUtil
-  - cd bncsutil/src/bncsutil && make && make install
+  # BNCSUtil (from Source)
+  - apt-get install -y build-essential cmake
+  - git clone https://github.com/BNETDocs/bncsutil.git
+  - cd bncsutil
+  - git checkout v1.4.1
+  - cmake -G "Unix Makefiles" -B./build -H./
+  - cd build && make && make install
   - cd $CI_PROJECT_DIR
-  - cp /usr/lib/libbncsutil.so dist/lib
+  - cp /usr/local/lib/libbncsutil.so dist/lib
+  - cp -R /usr/local/include/bncsutil dist/include
   # StormLib
-  - cd StormLib/stormlib/ && make && make install
+  - apt-get install -y build-essential cmake zlib1g-dev libbz2-dev
+  - git clone https://github.com/ladislav-zezula/StormLib
+  - cd StormLib
+  - git checkout bd203c036bf6a8a900fb9557f9dfa95b6eb1f46b # 13. Jun 2018 - Sadly this repo doesn't have version tags for the latest version
+  - sed -i -e 's/option(BUILD_SHARED_LIBS "Compile shared libraries" OFF)/option(BUILD_SHARED_LIBS "Compile shared libraries" ON)/g' CMakeLists.txt # build library as shared library (.so)
+  - cmake -G "Unix Makefiles" -B./build -H./
+  - cd build && make && make install
   - cd $CI_PROJECT_DIR
-  - cp /usr/local/lib/libStorm.so dist/lib
-  - cp /usr/local/include/StormLib/StormLib.h dist/include
-  - cp /usr/local/include/StormLib/StormPort.h dist/include
+  - cp /usr/local/lib/libstorm.so dist/lib
+  - cp /usr/local/include/StormLib.h dist/include/stormlib
+  - cp /usr/local/include/StormPort.h dist/include/stormlib
   # GhostPP
+  - cp -R dist/include/* /usr/local/include # make dist/includes available for the ghost build
   - cd ghost/ && make
   - cd $CI_PROJECT_DIR
   - cp ghost/ghost++ dist
