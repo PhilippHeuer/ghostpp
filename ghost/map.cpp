@@ -313,7 +313,7 @@ void CMap :: Load( CConfig *CFG, string nCFGFile )
 							char *SubFileData = new char[FileLength];
 							DWORD BytesRead = 0;
 
-							if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead ) )
+							if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
 							{
 								CONSOLE_Print( "[MAP] overriding default common.j with map copy while calculating map_crc/sha1" );
 								OverrodeCommonJ = true;
@@ -349,7 +349,7 @@ void CMap :: Load( CConfig *CFG, string nCFGFile )
 							char *SubFileData = new char[FileLength];
 							DWORD BytesRead = 0;
 
-							if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead ) )
+							if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
 							{
 								CONSOLE_Print( "[MAP] overriding default blizzard.j with map copy while calculating map_crc/sha1" );
 								OverrodeBlizzardJ = true;
@@ -407,7 +407,7 @@ void CMap :: Load( CConfig *CFG, string nCFGFile )
 								char *SubFileData = new char[FileLength];
 								DWORD BytesRead = 0;
 
-								if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead ) )
+								if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
 								{
 									if( *i == "war3map.j" || *i == "scripts\\war3map.j" )
 										FoundScript = true;
@@ -474,7 +474,7 @@ void CMap :: Load( CConfig *CFG, string nCFGFile )
 					char *SubFileData = new char[FileLength];
 					DWORD BytesRead = 0;
 
-					if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead ) )
+					if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
 					{
 						istringstream ISS( string( SubFileData, BytesRead ) );
 
