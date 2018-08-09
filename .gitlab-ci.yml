@@ -60,8 +60,8 @@ Docker Container:
   script:
   # copy artifacts
   - cp dist/ghost++ docker/rootfs/opt/ghostpp/ghost++
-  - cp dist/lib/libbncsutil.so docker/rootfs/usr/lib
-  - cp dist/lib/libstorm.so docker/rootfs/usr/local/lib
+  - cp dist/lib/libbncsutil.so docker/rootfs/usr/local/lib/libbncsutil.so.1
+  - cp dist/lib/libstorm.so docker/rootfs/usr/local/lib/libstorm.so.9
   - cp dist/config/* docker/rootfs/opt/ghostpp
   # registry
   # - gitlab
