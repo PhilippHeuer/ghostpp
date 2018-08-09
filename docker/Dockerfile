@@ -327,6 +327,8 @@ ENV BNET_BNLSWARDENCOOKIE 2
 ENV PACKAGES="\
   gettext-base \
   curl \
+  wget \
+  unzip \
   gzip \
   build-essential \
   libgeoip-dev \
@@ -353,8 +355,8 @@ RUN echo "Configuration ..." &&\
 	mv /opt/ghostpp/GeoIP.dat /opt/ghostpp/geoip.dat &&\
 	# War3 Data
 	curl -o "/opt/ghostpp/war3/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/Warcraft%20III.exe?inline=false &&\
-	curl -o "/opt/ghostpp/data/mapcfgs/blizzard.j" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/Blizzard.j?inline=false &&\
-	curl -o "/opt/ghostpp/data/mapcfgs/common.j" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/common.j?inline=false &&\
+	curl -o "/opt/ghostpp/war3/scripts.zip" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/scripts.zip?inline=false &&\
+	unzip /opt/ghostpp/war3/scripts.zip -d /opt/ghostpp/war3 &&\
 	# Permissions
 	chmod +x /usr/local/bin/ghostpp.sh &&\
 	chmod +x /opt/ghostpp/ghost++
