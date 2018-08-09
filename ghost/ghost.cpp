@@ -620,11 +620,11 @@ CGHost :: CGHost( CConfig *CFG )
 	if( m_BNETs.empty( ) )
 		CONSOLE_Print( "[GHOST] warning - no battle.net connections found in config file" );
 
-	// extract common.j and blizzard.j from War3Patch.mpq if we can
-	// these two files are necessary for calculating "map_crc" when loading maps so we make sure to do it before loading the default map
-	// see CMap :: Load for more information
+	// extract common.j and blizzard.j from War3Patch.mpq if we can, does not work from version 1.30 onwards
 
-	ExtractScripts( );
+	if ( m_LANWar3Version < 30 ) {
+		ExtractScripts( );
+	}
 
 	// load the default maps (note: make sure to run ExtractScripts first)
 
