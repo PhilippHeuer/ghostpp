@@ -50,43 +50,6 @@
 #define __STORMLIB_SELF__
 #include <stormlib/StormLib.h>
 
-/*
-
-#include "ghost.h"
-#include "util.h"
-#include "crc32.h"
-#include "sha1.h"
-#include "csvparser.h"
-#include "config.h"
-#include "language.h"
-#include "socket.h"
-#include "commandpacket.h"
-#include "ghostdb.h"
-#include "ghostdbsqlite.h"
-#include "ghostdbmysql.h"
-#include "bncsutilinterface.h"
-#include "warden.h"
-#include "bnlsprotocol.h"
-#include "bnlsclient.h"
-#include "bnetprotocol.h"
-#include "bnet.h"
-#include "map.h"
-#include "packed.h"
-#include "savegame.h"
-#include "replay.h"
-#include "gameslot.h"
-#include "gameplayer.h"
-#include "gameprotocol.h"
-#include "gpsprotocol.h"
-#include "game_base.h"
-#include "game.h"
-#include "game_admin.h"
-#include "stats.h"
-#include "statsdota.h"
-#include "sqlite3.h"
-
-*/
-
 #ifdef WIN32
  #include <windows.h>
  #include <winsock.h>
@@ -272,7 +235,9 @@ int main( int argc, char **argv )
 
 	if( !gLogFile.empty( ) )
 	{
-		if( gLogMethod == 1 )
+		if( gLogMethod == 0 )
+			CONSOLE_Print( "[GHOST] using log method 0, file based logging is disabled" );
+		else if( gLogMethod == 1 )
 			CONSOLE_Print( "[GHOST] using log method 1, logging is enabled and [" + gLogFile + "] will not be locked" );
 		else if( gLogMethod == 2 )
 		{
@@ -280,6 +245,9 @@ int main( int argc, char **argv )
 				CONSOLE_Print( "[GHOST] using log method 2 but unable to open [" + gLogFile + "] for appending, logging is disabled" );
 			else
 				CONSOLE_Print( "[GHOST] using log method 2, logging is enabled and [" + gLogFile + "] is now locked" );
+		}
+		else {
+			CONSOLE_Print( "[GHOST] unknown log method specified, logging disabled" );
 		}
 	}
 	else
