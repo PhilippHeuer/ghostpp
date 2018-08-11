@@ -37,6 +37,8 @@
 #include "game_base.h"
 
 #include <boost/filesystem.hpp>
+#include <iostream>
+#include <curl/curl.h>
 
 using namespace boost :: filesystem;
 
@@ -2045,6 +2047,37 @@ void CBNET :: BotCommand( string Message, string User, bool Whisper, bool ForceR
 				QueueChatCommand( "WARDEN STATUS --- " + UTIL_ToString( m_BNLSClient->GetTotalWardenIn( ) ) + " requests received, " + UTIL_ToString( m_BNLSClient->GetTotalWardenOut( ) ) + " responses sent.", User, Whisper );
 			else
 				QueueChatCommand( "WARDEN STATUS --- Not connected to BNLS server.", User, Whisper );
+		}
+
+		/**
+		 * Command: !downloadmap
+		 * Alias: !dlmap
+		 * Description: Downloads a map based on the provided url.
+		 */
+		else if( ( Command == "downloadmap" || Command == "dlmap" ) && !Payload.empty( ) )
+		{
+			/**
+			 * Check if the user is RootAdmin, MapDownload is only allowed for RootAdmins.
+			 */
+			if( IsRootAdmin( User ) || ForceRoot )
+			{
+				CONSOLE_Print( "[GHOST] downloading map from " + Payload + " requested by user " + User + "!" );
+				QueueChatCommand( "Starting download of the map requested by " + User + ". [Link: " + Payload + "]", User, Whisper );
+
+				try {
+					// download map
+					// TODO: use libcurl instread of system
+					string curlCommmand = "(cd /opt/ghostpp/data/maps; curl -O -J -L \"" + Payload + "\")";
+					system(curlCommmand.c_str());
+				} catch (...) {
+					QueueChatCommand( "Map could not be downloaded!", User, Whisper );
+					return;
+				}
+				
+				QueueChatCommand( "Map was downloaded successfully.", User, Whisper );
+			}
+			else
+				QueueChatCommand( m_GHost->m_Language->YouDontHaveAccessToThatCommand( ), User, Whisper );
 		}
 	}
 	else
