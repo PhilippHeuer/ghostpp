@@ -620,13 +620,7 @@ CGHost :: CGHost( CConfig *CFG )
 	if( m_BNETs.empty( ) )
 		CONSOLE_Print( "[GHOST] warning - no battle.net connections found in config file" );
 
-	// extract common.j and blizzard.j from War3Patch.mpq if we can, does not work from version 1.30 onwards
-
-	if ( m_LANWar3Version < 30 ) {
-		ExtractScripts( );
-	}
-
-	// load the default maps (note: make sure to run ExtractScripts first)
+	// load the default maps
 
 	if( m_DefaultMap.size( ) < 4 || m_DefaultMap.substr( m_DefaultMap.size( ) - 4 ) != ".cfg" )
 	{
@@ -1331,80 +1325,6 @@ void CGHost :: SetConfigs( CConfig *CFG )
 	m_TCPNoDelay = CFG->GetInt( "tcp_nodelay", 0 ) == 0 ? false : true;
 	m_MatchMakingMethod = CFG->GetInt( "bot_matchmakingmethod", 1 );
 	m_MapGameType = CFG->GetUInt32( "bot_mapgametype", 0 );
-}
-
-void CGHost :: ExtractScripts( )
-{
-	string PatchMPQFileName = m_Warcraft3Path + "War3x.mpq";
-
-	if( !UTIL_FileExists( PatchMPQFileName ) )
-		PatchMPQFileName = m_Warcraft3Path + "War3Patch.mpq";
-
-	HANDLE PatchMPQ;
-
-	if( SFileOpenArchive( PatchMPQFileName.c_str( ), 0, MPQ_OPEN_FORCE_MPQ_V1, &PatchMPQ ) )
-	{
-		CONSOLE_Print( "[GHOST] loading MPQ file [" + PatchMPQFileName + "]" );
-		HANDLE SubFile;
-
-		// common.j
-
-		if( SFileOpenFileEx( PatchMPQ, "Scripts\\common.j", 0, &SubFile ) )
-		{
-			uint32_t FileLength = SFileGetFileSize( SubFile, NULL );
-
-			if( FileLength > 0 && FileLength != 0xFFFFFFFF )
-			{
-				char *SubFileData = new char[FileLength];
-				DWORD BytesRead = 0;
-
-				if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
-				{
-					CONSOLE_Print( "[GHOST] extracting Scripts\\common.j from MPQ file to [" + m_MapCFGPath + "common.j]" );
-					UTIL_FileWrite( m_MapCFGPath + "common.j", (unsigned char *)SubFileData, BytesRead );
-				}
-				else
-					CONSOLE_Print( "[GHOST] warning - unable to extract Scripts\\common.j from MPQ file" );
-
-				delete [] SubFileData;
-			}
-
-			SFileCloseFile( SubFile );
-		}
-		else
-			CONSOLE_Print( "[GHOST] couldn't find Scripts\\common.j in MPQ file" );
-
-		// blizzard.j
-
-		if( SFileOpenFileEx( PatchMPQ, "Scripts\\blizzard.j", 0, &SubFile ) )
-		{
-			uint32_t FileLength = SFileGetFileSize( SubFile, NULL );
-
-			if( FileLength > 0 && FileLength != 0xFFFFFFFF )
-			{
-				char *SubFileData = new char[FileLength];
-				DWORD BytesRead = 0;
-
-				if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
-				{
-					CONSOLE_Print( "[GHOST] extracting Scripts\\blizzard.j from MPQ file to [" + m_MapCFGPath + "blizzard.j]" );
-					UTIL_FileWrite( m_MapCFGPath + "blizzard.j", (unsigned char *)SubFileData, BytesRead );
-				}
-				else
-					CONSOLE_Print( "[GHOST] warning - unable to extract Scripts\\blizzard.j from MPQ file" );
-
-				delete [] SubFileData;
-			}
-
-			SFileCloseFile( SubFile );
-		}
-		else
-			CONSOLE_Print( "[GHOST] couldn't find Scripts\\blizzard.j in MPQ file" );
-
-		SFileCloseArchive( PatchMPQ );
-	}
-	else
-		CONSOLE_Print( "[GHOST] warning - unable to load MPQ file [" + PatchMPQFileName + "] - error code " + UTIL_ToString( GetLastError( ) ) );
 }
 
 void CGHost :: LoadIPToCountryData( )
