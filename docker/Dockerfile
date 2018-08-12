@@ -537,6 +537,7 @@ ENV PACKAGES="\
   libgeoip-dev \
   libmysqlclient-dev \
   libboost-all-dev \
+  libcurl4-gnutls-dev \
 "
 
 # Packages

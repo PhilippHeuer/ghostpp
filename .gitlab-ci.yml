@@ -21,7 +21,7 @@ Assemble:
       - dist/
   script:
   # Packages
-  - apt-get update && apt-get install -y build-essential git libgeoip-dev libgmp-dev zlib1g-dev libmysqlclient-dev libboost-all-dev gettext-base
+  - apt-get update && apt-get install -y build-essential git libgeoip-dev libgmp-dev zlib1g-dev libmysqlclient-dev libboost-all-dev gettext-base libcurl4-gnutls-dev
   - ln -s /usr/lib/x86_64-linux-gnu/libmysqlclient.so /usr/lib/x86_64-linux-gnu/libmysqlclient_r.so
   - mkdir -p dist/lib dist/include dist/include/stormlib dist/config
   - cp /usr/lib/x86_64-linux-gnu/libmysqlclient.so dist/lib
