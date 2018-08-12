@@ -1499,14 +1499,38 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				// otherwise check that the game is ready to start
 
 				if( Payload == "force" )
-					StartCountDown( true );
+					StartCountDown( true, 5 );
 				else
 				{
 					if( GetTicks( ) - m_LastPlayerLeaveTicks >= 2000 )
-						StartCountDown( false );
+						StartCountDown( false, 5 );
 					else
 						SendAllChat( m_GHost->m_Language->CountDownAbortedSomeoneLeftRecently( ) );
 				}
+			}
+
+			/**
+			 * Command: !startnow
+			 * Alias: !sn
+			 * Description: Starts the game instantly without countdown.
+			 */
+			if ( (Command == "startnow" || Command == "sn") && !m_CountDownStarted )
+			{
+				StartCountDown( true, 0 );
+			}
+
+			/**
+			 * Command: !startin
+			 * Alias: !si
+			 * Description: Starts the game in `Payload` seconds.
+			 */
+			if ( (Command == "startin" || Command == "si") && !m_CountDownStarted && !Payload.empty( ) )
+			{
+				uint32_t Interval;
+				stringstream SS;
+				SS << Payload;
+				SS >> Interval;
+				StartCountDown( true, Interval );
 			}
 
 			//

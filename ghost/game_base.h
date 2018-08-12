@@ -274,7 +274,7 @@ public:
 	virtual bool IsDownloading( );
 	virtual bool IsGameDataSaved( );
 	virtual void SaveGameData( );
-	virtual void StartCountDown( bool force );
+	virtual void StartCountDown( bool force, int countdown );
 	virtual void StartCountDownAuto( bool requireSpoofChecks );
 	virtual void StopPlayers( string reason );
 	virtual void StopLaggers( string reason );
