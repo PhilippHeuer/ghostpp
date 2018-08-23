@@ -1675,71 +1675,7 @@ void CBNET :: BotCommand( string Message, string User, bool Whisper, bool ForceR
 				QueueChatCommand( m_GHost->m_Language->CurrentlyLoadedMapCFGIs( m_GHost->m_Map->GetCFGFile( ) ), User, Whisper );
 			else
 			{
-				string FoundMapConfigs;
-
-				try
-				{
-					path MapCFGPath( m_GHost->m_MapCFGPath );
-					string Pattern = Payload;
-					transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
-
-					if( !exists( MapCFGPath ) )
-					{
-						CONSOLE_Print( "[BNET: " + m_ServerAlias + "] error listing map configs - map config path doesn't exist" );
-						QueueChatCommand( m_GHost->m_Language->ErrorListingMapConfigs( ), User, Whisper );
-					}
-					else
-					{
-						directory_iterator EndIterator;
-						path LastMatch;
-						uint32_t Matches = 0;
-
-						for( directory_iterator i( MapCFGPath ); i != EndIterator; ++i )
-						{
-							string FileName = i->path( ).filename( ).string( );
-							string Stem = i->path( ).stem( ).string( );
-							transform( FileName.begin( ), FileName.end( ), FileName.begin( ), (int(*)(int))tolower );
-							transform( Stem.begin( ), Stem.end( ), Stem.begin( ), (int(*)(int))tolower );
-
-							if( !is_directory( i->status( ) ) && i->path( ).extension( ) == ".cfg" && FileName.find( Pattern ) != string :: npos )
-							{
-								LastMatch = i->path( );
-								++Matches;
-
-								if( FoundMapConfigs.empty( ) )
-									FoundMapConfigs = i->path( ).filename( ).string( );
-								else
-									FoundMapConfigs += ", " + i->path( ).filename( ).string( );
-
-								// if the pattern matches the filename exactly, with or without extension, stop any further matching
-
-								if( FileName == Pattern || Stem == Pattern )
-								{
-									Matches = 1;
-									break;
-								}
-							}
-						}
-
-						if( Matches == 0 )
-							QueueChatCommand( m_GHost->m_Language->NoMapConfigsFound( ), User, Whisper );
-						else if( Matches == 1 )
-						{
-							string File = LastMatch.filename( ).string( );
-							QueueChatCommand( m_GHost->m_Language->LoadingConfigFile( m_GHost->m_MapCFGPath + File ), User, Whisper );
-							CConfig MapCFG;
-							MapCFG.Read( LastMatch.string( ) );
-							m_GHost->m_Map->Load( &MapCFG, m_GHost->m_MapCFGPath + File );
-						}
-						else
-							QueueChatCommand( m_GHost->m_Language->FoundMapConfigs( FoundMapConfigs ), User, Whisper );
-					}
-				}
-				catch( const exception &ex )
-				{
-					CONSOLE_Print( "[BNET: " + m_ServerAlias + "] error listing map configs - caught exception [" + ex.what( ) + "]" );
-					QueueChatCommand( m_GHost->m_Language->ErrorListingMapConfigs( ), User, Whisper );
-				}
+				m_GHost->LoadMapConfig( Payload, this, User, Whisper );
 			}
 		}
 
@@ -1786,75 +1722,7 @@ void CBNET :: BotCommand( string Message, string User, bool Whisper, bool ForceR
 				QueueChatCommand( m_GHost->m_Language->CurrentlyLoadedMapCFGIs( m_GHost->m_Map->GetCFGFile( ) ), User, Whisper );
 			else
 			{
-				string FoundMaps;
-
-				try
-				{
-					path MapPath( m_GHost->m_MapPath );
-					string Pattern = Payload;
-					transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
-
-					if( !exists( MapPath ) )
-					{
-						CONSOLE_Print( "[BNET: " + m_ServerAlias + "] error listing maps - map path doesn't exist" );
-						QueueChatCommand( m_GHost->m_Language->ErrorListingMaps( ), User, Whisper );
-					}
-					else
-					{
-						directory_iterator EndIterator;
-						path LastMatch;
-						uint32_t Matches = 0;
-
-						for( directory_iterator i( MapPath ); i != EndIterator; ++i )
-						{
-							string FileName = i->path( ).filename( ).string( );
-							string Stem = i->path( ).stem( ).string( );
-							transform( FileName.begin( ), FileName.end( ), FileName.begin( ), (int(*)(int))tolower );
-							transform( Stem.begin( ), Stem.end( ), Stem.begin( ), (int(*)(int))tolower );
-
-							if( !is_directory( i->status( ) ) && FileName.find( Pattern ) != string :: npos )
-							{
-								LastMatch = i->path( );
-								++Matches;
-
-								if( FoundMaps.empty( ) )
-									FoundMaps = i->path( ).filename( ).string( );
-								else
-									FoundMaps += ", " + i->path( ).filename( ).string( );
-
-								// if the pattern matches the filename exactly, with or without extension, stop any further matching
-
-								if( FileName == Pattern || Stem == Pattern )
-								{
-									Matches = 1;
-									break;
-								}
-							}
-						}
-
-						if( Matches == 0 )
-							QueueChatCommand( m_GHost->m_Language->NoMapsFound( ), User, Whisper );
-						else if( Matches == 1 )
-						{
-							string File = LastMatch.filename( ).string( );
-							QueueChatCommand( m_GHost->m_Language->LoadingConfigFile( File ), User, Whisper );
-
-							// hackhack: create a config file in memory with the required information to load the map
-
-							CConfig MapCFG;
-							MapCFG.Set( "map_path", "Maps\\Download\\" + File );
-							MapCFG.Set( "map_localpath", File );
-							m_GHost->m_Map->Load( &MapCFG, File );
-						}
-						else
-							QueueChatCommand( m_GHost->m_Language->FoundMaps( FoundMaps ), User, Whisper );
-					}
-				}
-				catch( const exception &ex )
-				{
-					CONSOLE_Print( "[BNET: " + m_ServerAlias + "] error listing maps - caught exception [" + ex.what( ) + "]" );
-					QueueChatCommand( m_GHost->m_Language->ErrorListingMaps( ), User, Whisper );
-				}
+				m_GHost->LoadMap( Payload, this, User, Whisper );
 			}
 		}
 

@@ -38,10 +38,12 @@
 #include "gpsprotocol.h"
 #include "game_base.h"
 #include "game.h"
-#include "game_admin.h"
 
 #include <signal.h>
 #include <stdlib.h>
+
+#include <boost/filesystem.hpp>
+#include <iostream>
 
 #ifdef WIN32
  #include <ws2tcpip.h>		// for WSAIoctl
@@ -480,11 +482,8 @@ CGHost :: CGHost( CConfig *CFG )
 	m_HostPort = CFG->GetInt( "bot_hostport", 6112 );
 	m_Reconnect = CFG->GetInt( "bot_reconnect", 1 ) == 0 ? false : true;
 	m_ReconnectPort = CFG->GetInt( "bot_reconnectport", 6114 );
-	m_DefaultMap = CFG->GetString( "bot_defaultmap", "map" );
-	m_AdminGameCreate = CFG->GetInt( "admingame_create", 0 ) == 0 ? false : true;
-	m_AdminGamePort = CFG->GetInt( "admingame_port", 6113 );
-	m_AdminGamePassword = CFG->GetString( "admingame_password", string( ) );
-	m_AdminGameMap = CFG->GetString( "admingame_map", string( ) );
+	m_DefaultMap = CFG->GetString( "bot_defaultmap", "" );
+	m_DefaultMapCfg = CFG->GetString( "bot_defaultmapcfg", "" );
 	m_LANWar3Version = CFG->GetInt( "lan_war3version", 30 );
 	m_ReplayWar3Version = CFG->GetInt( "replay_war3version", 30 );
 	m_ReplayBuildNumber = CFG->GetInt( "replay_buildnumber", 6060 );
@@ -590,40 +589,23 @@ CGHost :: CGHost( CConfig *CFG )
 
 	// load the default maps
 
-	if( m_DefaultMap.size( ) < 4 || m_DefaultMap.substr( m_DefaultMap.size( ) - 4 ) != ".cfg" )
+	if ( !m_DefaultMap.empty() )
 	{
-		m_DefaultMap += ".cfg";
-		CONSOLE_Print( "[GHOST] adding \".cfg\" to default map -> new default is [" + m_DefaultMap + "]" );
+		// load map - no user name / whisper since no user is triggering this event
+		CONSOLE_Print( "[GHOST] initial map specified in bot_defaultmap [" + m_DefaultMap + "]" );
+		LoadMap( m_DefaultMap, NULL, "", false );
+	}
+	else if ( !m_DefaultMapCfg.empty() )
+	{
+		// load map - no user name / whisper since no user is triggering this event
+		CONSOLE_Print( "[GHOST] initial map specified in bot_defaultmapcfg [" + m_DefaultMapCfg + "]" );
+		LoadMapConfig( m_DefaultMapCfg, NULL, "", false );
 	}
 
-	CConfig MapCFG;
-	MapCFG.Read( m_MapCFGPath + m_DefaultMap );
-	m_Map = new CMap( this, &MapCFG, m_MapCFGPath + m_DefaultMap );
-
-	if( !m_AdminGameMap.empty( ) )
+	// if default map couldn't be loaded, use the default wormwar
+	if ( m_Map == NULL )
 	{
-		if( m_AdminGameMap.size( ) < 4 || m_AdminGameMap.substr( m_AdminGameMap.size( ) - 4 ) != ".cfg" )
-		{
-			m_AdminGameMap += ".cfg";
-			CONSOLE_Print( "[GHOST] adding \".cfg\" to default admin game map -> new default is [" + m_AdminGameMap + "]" );
-		}
-
-		CONSOLE_Print( "[GHOST] trying to load default admin game map" );
-		CConfig AdminMapCFG;
-		AdminMapCFG.Read( m_MapCFGPath + m_AdminGameMap );
-		m_AdminMap = new CMap( this, &AdminMapCFG, m_MapCFGPath + m_AdminGameMap );
-
-		if( !m_AdminMap->GetValid( ) )
-		{
-			CONSOLE_Print( "[GHOST] default admin game map isn't valid, using hardcoded admin game map instead" );
-			delete m_AdminMap;
-			m_AdminMap = new CMap( this );
-		}
-	}
-	else
-	{
-		CONSOLE_Print( "[GHOST] using hardcoded admin game map" );
-		m_AdminMap = new CMap( this );
+		CONSOLE_Print( "[GHOST] error - no default map configuration could be loaded" );
 	}
 
 	m_AutoHostMap = new CMap( *m_Map );
@@ -633,22 +615,8 @@ CGHost :: CGHost( CConfig *CFG )
 
 	LoadIPToCountryData( );
 
-	// create the admin game
-
-	if( m_AdminGameCreate )
-	{
-		CONSOLE_Print( "[GHOST] creating admin game" );
-		m_AdminGame = new CAdminGame( this, m_AdminMap, NULL, m_AdminGamePort, 0, "GHost++ Admin Game", m_AdminGamePassword );
-		boost::thread(&CBaseGame::loop, m_AdminGame);
-
-		if( m_AdminGamePort == m_HostPort )
-			CONSOLE_Print( "[GHOST] warning - admingame_port and bot_hostport are set to the same value, you won't be able to host any games" );
-	}
-	else
-		m_AdminGame = NULL;
-
-	if( m_BNETs.empty( ) && !m_AdminGame )
-		CONSOLE_Print( "[GHOST] warning - no battle.net connections found and no admin game created" );
+	if( m_BNETs.empty( ) )
+		CONSOLE_Print( "[GHOST] warning - no battle.net connections found" );
 
 #ifdef GHOST_MYSQL
 	CONSOLE_Print( "[GHOST] GHost++ Version " + m_Version + " (with MySQL support)" );
@@ -674,8 +642,6 @@ CGHost :: ~CGHost( )
 
 	if( m_CurrentGame )
 		m_CurrentGame->doDelete();
-	if( m_AdminGame )
-		m_AdminGame->doDelete();
 
 	for( vector<CBaseGame *> :: iterator i = m_Games.begin( ); i != m_Games.end( ); ++i )
 		(*i)->doDelete();
@@ -692,7 +658,6 @@ CGHost :: ~CGHost( )
 
 	delete m_Language;
 	delete m_Map;
-	delete m_AdminMap;
 	delete m_AutoHostMap;
 	delete m_SaveGame;
 }
@@ -760,13 +725,6 @@ bool CGHost :: Update( long usecBlock )
 			CONSOLE_Print( "[GHOST] deleting current game in preparation for exiting nicely" );
 			m_CurrentGame->doDelete( );
 			m_CurrentGame = NULL;
-		}
-
-		if( m_AdminGame )
-		{
-			CONSOLE_Print( "[GHOST] deleting admin game in preparation for exiting nicely" );
-			m_AdminGame->doDelete( );
-			m_AdminGame = NULL;
 		}
 
 		if( m_Games.empty( ) )
@@ -1109,33 +1067,26 @@ bool CGHost :: Update( long usecBlock )
 
 void CGHost :: EventBNETConnecting( CBNET *bnet )
 {
-	if( m_AdminGame )
-		m_AdminGame->SendAllChat( m_Language->ConnectingToBNET( bnet->GetServer( ) ) );
+
 }
 
 void CGHost :: EventBNETConnected( CBNET *bnet )
 {
-	if( m_AdminGame )
-		m_AdminGame->SendAllChat( m_Language->ConnectedToBNET( bnet->GetServer( ) ) );
+
 }
 
 void CGHost :: EventBNETDisconnected( CBNET *bnet )
 {
-	if( m_AdminGame )
-		m_AdminGame->SendAllChat( m_Language->DisconnectedFromBNET( bnet->GetServer( ) ) );
+
 }
 
 void CGHost :: EventBNETLoggedIn( CBNET *bnet )
 {
-	if( m_AdminGame )
-		m_AdminGame->SendAllChat( m_Language->LoggedInToBNET( bnet->GetServer( ) ) );
+
 }
 
 void CGHost :: EventBNETGameRefreshed( CBNET *bnet )
 {
-	if( m_AdminGame )
-		m_AdminGame->SendAllChat( m_Language->BNETGameHostingSucceeded( bnet->GetServer( ) ) );
-
 	boost::mutex::scoped_lock lock( m_GamesMutex );
 	
 	if( m_CurrentGame )
@@ -1158,9 +1109,6 @@ void CGHost :: EventBNETGameRefreshFailed( CBNET *bnet )
 				(*i)->QueueChatCommand( m_Language->UnableToCreateGameTryAnotherName( bnet->GetServer( ), m_CurrentGame->GetGameName( ) ), m_CurrentGame->GetCreatorName( ), true );
 		}
 
-		if( m_AdminGame )
-			m_AdminGame->SendAllChat( m_Language->BNETGameHostingFailed( bnet->GetServer( ), m_CurrentGame->GetGameName( ) ) );
-
 		boost::mutex::scoped_lock sayLock( m_CurrentGame->m_SayGamesMutex );
 		m_CurrentGame->m_DoSayGames.push_back( m_Language->UnableToCreateGameTryAnotherName( bnet->GetServer( ), m_CurrentGame->GetGameName( ) ) );
 		sayLock.unlock( );
@@ -1180,32 +1128,22 @@ void CGHost :: EventBNETGameRefreshFailed( CBNET *bnet )
 
 void CGHost :: EventBNETConnectTimedOut( CBNET *bnet )
 {
-	if( m_AdminGame )
-		m_AdminGame->SendAllChat( m_Language->ConnectingToBNETTimedOut( bnet->GetServer( ) ) );
+
 }
 
 void CGHost :: EventBNETWhisper( CBNET *bnet, string user, string message )
 {
-	if( m_AdminGame )
-	{
-		m_AdminGame->SendAdminChat( "[W: " + bnet->GetServerAlias( ) + "] [" + user + "] " + message );
-	}
+
 }
 
 void CGHost :: EventBNETChat( CBNET *bnet, string user, string message )
 {
-	if( m_AdminGame )
-	{
-		m_AdminGame->SendAdminChat( "[L: " + bnet->GetServerAlias( ) + "] [" + user + "] " + message );
-	}
+
 }
 
 void CGHost :: EventBNETEmote( CBNET *bnet, string user, string message )
 {
-	if( m_AdminGame )
-	{
-		m_AdminGame->SendAdminChat( "[E: " + bnet->GetServerAlias( ) + "] [" + user + "] " + message );
-	}
+
 }
 
 void CGHost :: EventGameDeleted( CBaseGame *game )
@@ -1289,7 +1227,6 @@ void CGHost :: SetConfigs( CConfig *CFG )
 	m_MOTDFile = CFG->GetString( "bot_motdfile", "motd.txt" );
 	m_GameLoadedFile = CFG->GetString( "bot_gameloadedfile", "gameloaded.txt" );
 	m_GameOverFile = CFG->GetString( "bot_gameoverfile", "gameover.txt" );
-	m_LocalAdminMessages = CFG->GetInt( "bot_localadminmessages", 1 ) == 0 ? false : true;
 	m_TCPNoDelay = CFG->GetInt( "tcp_nodelay", 0 ) == 0 ? false : true;
 	m_MatchMakingMethod = CFG->GetInt( "bot_matchmakingmethod", 1 );
 	m_MapGameType = CFG->GetUInt32( "bot_mapgametype", 0 );
@@ -1372,9 +1309,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 				(*i)->QueueChatCommand( m_Language->UnableToCreateGameDisabled( gameName ), creatorName, whisper );
 		}
 
-		if( m_AdminGame )
-			m_AdminGame->SendAllChat( m_Language->UnableToCreateGameDisabled( gameName ) );
-
 		return;
 	}
 
@@ -1386,9 +1320,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 				(*i)->QueueChatCommand( m_Language->UnableToCreateGameNameTooLong( gameName ), creatorName, whisper );
 		}
 
-		if( m_AdminGame )
-			m_AdminGame->SendAllChat( m_Language->UnableToCreateGameNameTooLong( gameName ) );
-
 		return;
 	}
 
@@ -1399,9 +1330,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 			if( (*i)->GetServer( ) == creatorServer )
 				(*i)->QueueChatCommand( m_Language->UnableToCreateGameInvalidMap( gameName ), creatorName, whisper );
 		}
-
-		if( m_AdminGame )
-			m_AdminGame->SendAllChat( m_Language->UnableToCreateGameInvalidMap( gameName ) );
 
 		return;
 	}
@@ -1415,9 +1343,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 				if( (*i)->GetServer( ) == creatorServer )
 					(*i)->QueueChatCommand( m_Language->UnableToCreateGameInvalidSaveGame( gameName ), creatorName, whisper );
 			}
-
-			if( m_AdminGame )
-				m_AdminGame->SendAllChat( m_Language->UnableToCreateGameInvalidSaveGame( gameName ) );
 
 			return;
 		}
@@ -1437,9 +1362,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 					(*i)->QueueChatCommand( m_Language->UnableToCreateGameSaveGameMapMismatch( gameName ), creatorName, whisper );
 			}
 
-			if( m_AdminGame )
-				m_AdminGame->SendAllChat( m_Language->UnableToCreateGameSaveGameMapMismatch( gameName ) );
-
 			return;
 		}
 
@@ -1450,9 +1372,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 				if( (*i)->GetServer( ) == creatorServer )
 					(*i)->QueueChatCommand( m_Language->UnableToCreateGameMustEnforceFirst( gameName ), creatorName, whisper );
 			}
-
-			if( m_AdminGame )
-				m_AdminGame->SendAllChat( m_Language->UnableToCreateGameMustEnforceFirst( gameName ) );
 
 			return;
 		}
@@ -1468,9 +1387,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 				(*i)->QueueChatCommand( m_Language->UnableToCreateGameAnotherGameInLobby( gameName, m_CurrentGame->GetDescription( ) ), creatorName, whisper );
 		}
 
-		if( m_AdminGame )
-			m_AdminGame->SendAllChat( m_Language->UnableToCreateGameAnotherGameInLobby( gameName, m_CurrentGame->GetDescription( ) ) );
-
 		return;
 	}
 
@@ -1481,9 +1397,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 			if( (*i)->GetServer( ) == creatorServer )
 				(*i)->QueueChatCommand( m_Language->UnableToCreateGameMaxGamesReached( gameName, UTIL_ToString( m_MaxGames ) ), creatorName, whisper );
 		}
-
-		if( m_AdminGame )
-			m_AdminGame->SendAllChat( m_Language->UnableToCreateGameMaxGamesReached( gameName, UTIL_ToString( m_MaxGames ) ) );
 
 		return;
 	}
@@ -1532,14 +1445,6 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 			(*i)->QueueGameCreate( gameState, gameName, string( ), map, NULL, m_CurrentGame->GetHostCounter( ) );
 	}
 
-	if( m_AdminGame )
-	{
-		if( gameState == GAME_PRIVATE )
-			m_AdminGame->SendAllChat( m_Language->CreatingPrivateGame( gameName, ownerName ) );
-		else if( gameState == GAME_PUBLIC )
-			m_AdminGame->SendAllChat( m_Language->CreatingPublicGame( gameName, ownerName ) );
-	}
-
 	// if we're creating a private game we don't need to send any game refresh messages so we can rejoin the chat immediately
 	// unfortunately this doesn't work on PVPGN servers because they consider an enterchat message to be a gameuncreate message when in a game
 	// so don't rejoin the chat if we're using PVPGN
@@ -1567,4 +1472,181 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 	// start the game thread
 	boost::thread(&CBaseGame::loop, m_CurrentGame);
 	CONSOLE_Print("[GameThread] Made new game thread");
+}
+
+void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
+{
+	string FoundMaps;
+	string realmName = bnet == NULL ? "SYSTEM" : "BNET: " + bnet->GetServerAlias( );
+	CONSOLE_Print( "[" + realmName + "] trying to load map  [" + MapName + "] ..." );
+
+	try
+	{
+		boost::filesystem::path MapPath( m_MapPath );
+		string Pattern = MapName;
+		transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
+
+		if( !exists( MapPath ) )
+		{
+			CONSOLE_Print( "[" + realmName + "] error listing maps - map path doesn't exist" );
+
+			if ( !User.empty() )
+				bnet->QueueChatCommand( m_Language->ErrorListingMaps( ), User, Whisper );
+		}
+		else
+		{
+			boost::filesystem::directory_iterator EndIterator;
+			boost::filesystem::path LastMatch;
+			uint32_t Matches = 0;
+
+			for( boost::filesystem::directory_iterator i( MapPath ); i != EndIterator; ++i )
+			{
+				string FileName = i->path( ).filename( ).string( );
+				string Stem = i->path( ).stem( ).string( );
+				transform( FileName.begin( ), FileName.end( ), FileName.begin( ), (int(*)(int))tolower );
+				transform( Stem.begin( ), Stem.end( ), Stem.begin( ), (int(*)(int))tolower );
+
+				if( !boost::filesystem::is_directory( i->status( ) ) && FileName.find( Pattern ) != string :: npos )
+				{
+					LastMatch = i->path( );
+					++Matches;
+
+					if( FoundMaps.empty( ) )
+						FoundMaps = i->path( ).filename( ).string( );
+					else
+						FoundMaps += ", " + i->path( ).filename( ).string( );
+
+					// if the pattern matches the filename exactly, with or without extension, stop any further matching
+
+					if( FileName == Pattern || Stem == Pattern )
+					{
+						Matches = 1;
+						break;
+					}
+				}
+			}
+
+			if( Matches == 0 )
+			{
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->NoMapsFound( ) );
+				if ( !User.empty() )
+					bnet->QueueChatCommand( m_Language->NoMapsFound( ), User, Whisper );
+			}
+			else if( Matches == 1 )
+			{
+				string File = LastMatch.filename( ).string( );
+
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->LoadingConfigFile( File ) );
+				if ( !User.empty() )
+					bnet->QueueChatCommand( m_Language->LoadingConfigFile( File ), User, Whisper );
+
+				// create a config file in memory with the required information to load the map
+
+				CConfig MapCFG;
+				MapCFG.Set( "map_path", "Maps\\Download\\" + File );
+				MapCFG.Set( "map_localpath", File );
+				m_Map = new CMap( this, &MapCFG, m_MapCFGPath + File );
+			}
+			else
+			{
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->FoundMaps( FoundMaps ) );
+				if ( !User.empty() )
+					bnet->QueueChatCommand( m_Language->FoundMaps( FoundMaps ), User, Whisper );
+			}
+		}
+	}
+	catch( const exception &ex )
+	{
+		CONSOLE_Print( "[" + realmName + "] error listing maps - caught exception [" + ex.what( ) + "]" );
+
+		if ( !User.empty() )
+			bnet->QueueChatCommand( m_Language->ErrorListingMaps( ), User, Whisper );
+	}
+}
+
+void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bool Whisper )
+{
+	string FoundMapConfigs;
+	string realmName = bnet == NULL ? "SYSTEM" : "BNET: " + bnet->GetServerAlias( );
+	CONSOLE_Print( "[" + realmName + "] trying to load map config  [" + MapConfigName + "] ..." );
+
+	try
+	{
+		boost::filesystem::path MapCFGPath( m_MapCFGPath );
+		string Pattern = MapConfigName;
+		transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
+
+		if( !exists( MapCFGPath ) )
+		{
+			CONSOLE_Print( "[" + realmName + "] error listing map configs - map config path doesn't exist" );
+
+			if ( !User.empty() )
+				bnet->QueueChatCommand( m_Language->ErrorListingMapConfigs( ), User, Whisper );
+		}
+		else
+		{
+			boost::filesystem::directory_iterator EndIterator;
+			boost::filesystem::path LastMatch;
+			uint32_t Matches = 0;
+
+			for( boost::filesystem::directory_iterator i( MapCFGPath ); i != EndIterator; ++i )
+			{
+				string FileName = i->path( ).filename( ).string( );
+				string Stem = i->path( ).stem( ).string( );
+				transform( FileName.begin( ), FileName.end( ), FileName.begin( ), (int(*)(int))tolower );
+				transform( Stem.begin( ), Stem.end( ), Stem.begin( ), (int(*)(int))tolower );
+
+				if( !boost::filesystem::is_directory( i->status( ) ) && i->path( ).extension( ) == ".cfg" && FileName.find( Pattern ) != string :: npos )
+				{
+					LastMatch = i->path( );
+					++Matches;
+
+					if( FoundMapConfigs.empty( ) )
+						FoundMapConfigs = i->path( ).filename( ).string( );
+					else
+						FoundMapConfigs += ", " + i->path( ).filename( ).string( );
+
+					// if the pattern matches the filename exactly, with or without extension, stop any further matching
+
+					if( FileName == Pattern || Stem == Pattern )
+					{
+						Matches = 1;
+						break;
+					}
+				}
+			}
+
+			if( Matches == 0 )
+			{
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->NoMapConfigsFound( ) );
+				if ( !User.empty() )
+					bnet->QueueChatCommand( m_Language->NoMapConfigsFound( ), User, Whisper );
+			}
+			else if( Matches == 1 )
+			{
+				string File = LastMatch.filename( ).string( );
+				
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->LoadingConfigFile( m_MapCFGPath + File ) );
+				if ( !User.empty() )
+					bnet->QueueChatCommand( m_Language->LoadingConfigFile( m_MapCFGPath + File ), User, Whisper );
+
+				CConfig MapCFG;
+				MapCFG.Read( LastMatch.string( ) );
+				m_Map = new CMap( this, &MapCFG, m_MapCFGPath + File );
+			}
+			else
+			{
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->FoundMapConfigs( FoundMapConfigs ) );
+				if ( !User.empty() )
+					bnet->QueueChatCommand( m_Language->FoundMapConfigs( FoundMapConfigs ), User, Whisper );
+			}
+		}
+	}
+	catch( const exception &ex )
+	{
+		CONSOLE_Print( "[" + realmName + "] error listing map configs - caught exception [" + ex.what( ) + "]" );
+
+		if ( !User.empty() )
+			bnet->QueueChatCommand( m_Language->ErrorListingMapConfigs( ), User, Whisper );
+	}
 }

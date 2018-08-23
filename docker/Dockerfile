@@ -145,7 +145,7 @@ ENV BOT_PINGDURINGDOWNLOADS 1
 ENV BOT_MAXDOWNLOADERS 24
 
 ### the maximum combined download speed of all players downloading the map (in KB/sec)
-ENV BOT_MAXDOWNLOADSPEED 1000
+ENV BOT_MAXDOWNLOADSPEED 20000
 
 ### use LC style pings (divide actual pings by two)
 ENV BOT_LCPINGS 1
@@ -190,8 +190,11 @@ ENV BOT_VOTEKICKALLOWED 1
 ###  if you set it to 60 it will require 2/3, 2/4, 3/5, 3/6, 4/7, 5/8, 5/9, 6/10, 6/11, and 7/12 votes to pass
 ENV BOT_VOTEKICKPERCENTAGE 70
 
+### the default map (mapcfg will be created in-memory)
+ENV BOT_DEFAULTMAP ""
+
 ### the default map config (the ".cfg" will be added automatically if you leave it out)
-ENV BOT_DEFAULTMAP wormwar
+ENV BOT_DEFAULTMAPCFG wormwar
 
 ### the MOTD file
 ###  the first 8 lines of this file will be displayed when a player joins the game
@@ -206,13 +209,6 @@ ENV BOT_GAMELOADEDFILE gameloaded.txt
 ###  the first 8 lines of this file will be displayed when the game is over
 ###  this only works when using a stats class - note: at the time of this writing the only stats class is for DotA maps
 ENV BOT_GAMEOVERFILE gameover.txt
-
-### whether to send "local admin messages" or not
-###  these messages are battle.net chat messages, whispers, and emotes which the bot receives and passes on to the "local admin"
-###  the local admin is the game owner if they are playing from a LAN or the same computer as the bot
-###  this is useful when you are using the admin game to play with one set of CD keys and you want messages sent to the bot to be relayed to you
-###  you can enable or disable this for a particular game with the !messages command
-ENV BOT_LOCALADMINMESSAGES 1
 
 ### the "TCP no delay" flag
 ###  this controls whether or not your operating system should use the "no delay" algorithm on game sockets
@@ -236,23 +232,6 @@ ENV BOT_MAPGAMETYPE 0
 
 ### GeoIP File
 ENV BOT_GEOIPFILE /opt/ghostpp/geoip.dat
-
-## bot configuration
-### whether to create the admin game or not (see readme.txt for more information)
-ENV ADMINGAME_CREATE 0
-
-### the port GHost++ will host the admin game on (this must be different from your bot_hostport)
-ENV ADMINGAME_PORT 6113
-
-### the admin game password
-ENV ADMINGAME_PASSWORD ""
-
-### the default map config to use in the admin game
-###  if this value is blank the bot will use a hardcoded map instead
-###  it's recommended that you use the hardcoded map instead of specifying a different one
-###  this value exists because the hardcoded map is specific to Warcraft 3 versions and you may wish to use a previous or newer version
-###  the ".cfg" will be added automatically if you leave it out
-ENV ADMINGAME_MAP ""
 
 ## LAN CONFIGURATION
 ### the Warcraft 3 version to use when broadcasting LAN games
