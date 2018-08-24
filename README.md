@@ -1,10 +1,33 @@
 # GHost++
 
---------
+## Description
 
-## Running the image
+This fork builds a ready-to-run docker container around the ghost++ source.
 
-In order to run the Ghost++, use the following:
+Additionally it contains the following changes:
+
+| Command       | Alias         | Description                   | Permissions    | Credits        |
+| ------------- |:-------------:| -----------------------------:| --------------:| --------------:|
+| startnow      | sn            | Start the game instantly      | Admin          | @maxemann96    |
+| startin       | si            | Start the game in x seconds   | Admin          | @maxemann96    |
+| votestart     | vs            | Vote to start the game        | Everyone       | @maxemann96    |
+| dlmap         |               | Download a map based on a url | Rootadmin      |                |
+
+## Upstream Projects
+
+GHost++ is no longer actively maintained by it's original creators. Nevertheless, GHost++ remains widely used for hosting Warcraft III games, and there are no major known bugs.
+
+Here are other ghostpp projects:
+
+* [ghostpp](https://github.com/uakfdotb/ghostpp): upstream project, official ghostpp repository
+* [Aura](https://github.com/Josko/aura-bot/): simple bot to host games from a server, with greatly modernized core but with many features (MySQL support, autohosting) stripped out
+* [maxemann96/ghostpp](https://github.com/maxemann96/ghostpp): a few additional features like votestart, commands from terminal
+
+## Getting Started
+
+### Plain Docker
+
+In order to run the Ghost++ Bot, use the following command and fill the values:
 
 ```sh
 docker run -d --restart=unless-stopped \
@@ -30,15 +53,3 @@ docker run -d --restart=unless-stopped \
     --env BNET_COMMANDTRIGGER="!" \
     registry.gitlab.com/docker-gameserver/ghostpp:master
 ```
-
---------
-
-## Upstream Projects
-
-GHost++ is no longer actively maintained by it's original creators. Nevertheless, GHost++ remains widely used for hosting Warcraft III games, and there are no major known bugs.
-
-Here are other ghostpp projects:
-
-* [ghostpp](https://github.com/uakfdotb/ghostpp): upstream project, official ghostpp repository
-* [Aura](https://github.com/Josko/aura-bot/): simple bot to host games from a server, with greatly modernized core but with many features (MySQL support, autohosting) stripped out
-* [maxemann96/ghostpp](https://github.com/maxemann96/ghostpp): a few additional features like votestart, commands from terminal
