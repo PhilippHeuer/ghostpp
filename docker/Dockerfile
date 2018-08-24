@@ -113,7 +113,7 @@ ENV BOT_SPOOFCHECKS 1
 ###  this controls whether the bot will require players to spoof check before starting the game
 ###  it does NOT control whether the bot will require players to spoof check before running admin commands - spoof checks are ALWAYS required for admin status
 ###  if you require spoof checks, players will be kicked from the lobby if they haven't spoof checked within 20 seconds of joining (autohosted games only)
-ENV BOT_REQUIRESPOOFCHECKS 1
+ENV BOT_REQUIRESPOOFCHECKS 0
 
 ### whether to consider admins and root admins as reserved players or not
 ###  reserved players are allowed to join full games because another player will be kicked to allow them to join
