@@ -62,7 +62,6 @@ public:
 	CSHA1 *m_SHA;							// for calculating SHA1's
 	vector<CBNET *> m_BNETs;				// all our battle.net connections (there can be more than one)
 	CBaseGame *m_CurrentGame;				// this game is still in the lobby state
-	CAdminGame *m_AdminGame;				// this "fake game" allows an admin who knows the password to control the bot from the local network
 	vector<CBaseGame *> m_Games;			// these games are in progress
 	boost::thread_group m_GameThreads;		// the threads for games in progress and stuff
 	boost::mutex m_GamesMutex;
@@ -73,7 +72,6 @@ public:
 	vector<BYTEARRAY> m_LocalAddresses;		// vector of local IP addresses
 	CLanguage *m_Language;					// language
 	CMap *m_Map;							// the currently loaded map
-	CMap *m_AdminMap;						// the map to use in the admin game
 	CMap *m_AutoHostMap;					// the map to use when autohosting
 	CSaveGame *m_SaveGame;					// the save game to use
 	vector<PIDPlayer> m_EnforcePlayers;		// vector of pids to force players to use in the next game (used with saved games)
@@ -130,15 +128,11 @@ public:
 	uint32_t m_SyncLimit;					// config value: the maximum number of packets a player can fall out of sync before starting the lag screen (by default)
 	bool m_VoteKickAllowed;					// config value: if votekicks are allowed or not
 	uint32_t m_VoteKickPercentage;			// config value: percentage of players required to vote yes for a votekick to pass
-	string m_DefaultMap;					// config value: default map (map.cfg)
+	string m_DefaultMap;					// config value: default map name
+	string m_DefaultMapCfg;					// config value: default map cfg (map.cfg)
 	string m_MOTDFile;						// config value: motd.txt
 	string m_GameLoadedFile;				// config value: gameloaded.txt
 	string m_GameOverFile;					// config value: gameover.txt
-	bool m_LocalAdminMessages;				// config value: send local admin messages or not
-	bool m_AdminGameCreate;					// config value: create the admin game or not
-	uint16_t m_AdminGamePort;				// config value: the port to host the admin game on
-	string m_AdminGamePassword;				// config value: the admin game password
-	string m_AdminGameMap;					// config value: the admin game map config to use
 	unsigned char m_LANWar3Version;			// config value: LAN warcraft 3 version
 	uint32_t m_ReplayWar3Version;			// config value: replay warcraft 3 version (for saving replays)
 	uint32_t m_ReplayBuildNumber;			// config value: replay build number (for saving replays)
@@ -175,6 +169,8 @@ public:
 	void SetConfigs( CConfig *CFG );
 	void LoadIPToCountryData( );
 	void CreateGame( CMap *map, unsigned char gameState, bool saveGame, string gameName, string ownerName, string creatorName, string creatorServer, bool whisper );
+	void LoadMap( string MapName, CBNET *bnet, string User, bool Whisper );
+	void LoadMapConfig( string MapName, CBNET *bnet, string User, bool Whisper );
 };
 
 #endif

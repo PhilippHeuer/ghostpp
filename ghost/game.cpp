@@ -1141,24 +1141,6 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 			}
 
 			//
-			// !MESSAGES
-			//
-
-			else if( Command == "messages" )
-			{
-				if( Payload == "on" )
-				{
-					SendAllChat( m_GHost->m_Language->LocalAdminMessagesEnabled( ) );
-					m_LocalAdminMessages = true;
-				}
-				else if( Payload == "off" )
-				{
-					SendAllChat( m_GHost->m_Language->LocalAdminMessagesDisabled( ) );
-					m_LocalAdminMessages = false;
-				}
-			}
-
-			//
 			// !MUTE
 			//
 
