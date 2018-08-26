@@ -22,6 +22,7 @@
 #define GHOST_H
 
 #include "includes.h"
+#include <boost/filesystem.hpp>
 
 //
 // CGHost
@@ -83,6 +84,8 @@ public:
 	string m_AutoHostGameName;				// the base game name to auto host with
 	string m_AutoHostOwner;
 	string m_AutoHostServer;
+	string m_AutoHostRandomizeMapType;		// autohost randomize type (random/list)
+	string m_AutoHostRamdomizeMapList;		// list of maps for the type
 	uint32_t m_AutoHostMaximumGames;		// maximum number of games to auto host
 	uint32_t m_AutoHostAutoStartPlayers;	// when using auto hosting auto start the game when this many players have joined
 	uint32_t m_LastAutoHostTime;			// GetTime when the last auto host was attempted
@@ -171,6 +174,9 @@ public:
 	void CreateGame( CMap *map, unsigned char gameState, bool saveGame, string gameName, string ownerName, string creatorName, string creatorServer, bool whisper );
 	void LoadMap( string MapName, CBNET *bnet, string User, bool Whisper );
 	void LoadMapConfig( string MapName, CBNET *bnet, string User, bool Whisper );
+	std::vector<boost::filesystem::path> GetFilesInDirectory( boost::filesystem::path ParentDirectory, string Pattern );
+	std::vector<boost::filesystem::path> GetMapsInDirectory( boost::filesystem::path ParentDirectory, string Filename );
+	std::vector<boost::filesystem::path> GetMapConfigsInDirectory( boost::filesystem::path ParentDirectory, string Filename );
 };
 
 #endif
