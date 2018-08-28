@@ -254,6 +254,10 @@ public:
 	string WaitForReconnectSecondsRemain( string seconds );
 	string WasUnrecoverablyDroppedFromGProxy( );
 	string PlayerReconnectedWithGProxy( string name );
+	string GameStartingIn( string startin );
+	string VoteStartAborted( );
+	string VoteStartMinPlayers( string trigger, string minplayers );
+	string VoteStartXMoreVotesNeeded( string votesNeeded );
 };
 
 #endif

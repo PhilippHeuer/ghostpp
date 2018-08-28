@@ -128,6 +128,9 @@ public:
 	uint32_t m_SyncLimit;					// config value: the maximum number of packets a player can fall out of sync before starting the lag screen (by default)
 	bool m_VoteKickAllowed;					// config value: if votekicks are allowed or not
 	uint32_t m_VoteKickPercentage;			// config value: percentage of players required to vote yes for a votekick to pass
+	bool m_VoteStartAllowed;    			// config value: if votestarts are allowed or not
+	uint32_t m_VoteStartMinPlayers;         // config value: minimum number of players before users can !votestart
+	uint32_t m_VoteStartPercentage;			// config value: percentage of players required to votestart to begin a game
 	string m_DefaultMap;					// config value: default map name
 	string m_DefaultMapCfg;					// config value: default map cfg (map.cfg)
 	string m_MOTDFile;						// config value: motd.txt

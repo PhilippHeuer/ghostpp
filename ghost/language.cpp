@@ -1533,3 +1533,30 @@ string CLanguage :: PlayerReconnectedWithGProxy( string name )
 	UTIL_Replace( Out, "$NAME$", name );
 	return Out;
 }
+
+string CLanguage :: GameStartingIn( string startin )
+{
+	string Out = m_CFG->GetString( "lang_1000", "lang_1000" );
+	UTIL_Replace( Out, "$STARTIN$", startin );
+	return Out;
+}
+
+string CLanguage :: VoteStartAborted( )
+{
+	return m_CFG->GetString( "lang_1001", "lang_1001" );
+}
+
+string CLanguage :: VoteStartMinPlayers( string trigger, string minplayers )
+{
+	string Out = m_CFG->GetString( "lang_1002", "lang_1002" );
+	UTIL_Replace( Out, "$TRIGGER$", trigger );
+	UTIL_Replace( Out, "$MINPLAYERS$", minplayers );
+	return Out;
+}
+
+string CLanguage :: VoteStartXMoreVotesNeeded( string votesNeeded )
+{
+	string Out = m_CFG->GetString( "lang_1003", "lang_1003" );
+	UTIL_Replace( Out, "$VOTESNEEDED$", votesNeeded );
+	return Out;
+}

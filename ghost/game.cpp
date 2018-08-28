@@ -1496,8 +1496,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 			 * Alias: !sn
 			 * Description: Starts the game instantly without countdown.
 			 */
-			if ( (Command == "startnow" || Command == "sn") && !m_CountDownStarted )
-			{
+			if ( (Command == "startnow" || Command == "sn") && !m_CountDownStarted ) {
 				StartCountDown( true, 0 );
 			}
 
@@ -1506,8 +1505,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 			 * Alias: !si
 			 * Description: Starts the game in `Payload` seconds.
 			 */
-			if ( (Command == "startin" || Command == "si") && !m_CountDownStarted && !Payload.empty( ) )
-			{
+			if ( (Command == "startin" || Command == "si") && !m_CountDownStarted && !Payload.empty( ) ) {
 				uint32_t Interval;
 				stringstream SS;
 				SS << Payload;
@@ -1825,6 +1823,60 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 		}
 		else
 			SendAllChat( m_GHost->m_Language->VoteKickAcceptedNeedMoreVotes( m_KickVotePlayer, User, UTIL_ToString( VotesNeeded - Votes ) ) );
+	}
+
+	/**
+	 * Command: !votestart
+	 * Alias: !vs
+	 * Description: Votes to start the game, requires x players.
+	 */
+	if((Command == "votestart" || Command == "vs") && m_GHost->m_VoteStartAllowed && !m_CountDownStarted) {
+		if(!m_GHost->m_CurrentGame->GetLocked()) {
+			// only when votestart is initially called
+			if(m_StartedVoteStartTime == 0) {
+				// need at least n players to votestart
+				if ( GetNumHumanPlayers() < m_GHost->m_VoteStartMinPlayers && !(RootAdminCheck || IsOwner(User)) ) {
+					uint32_t MinPlayers = m_GHost->m_VoteStartMinPlayers;
+					SendChat( player, m_GHost->m_Language->VoteStartMinPlayers( string( 1, m_GHost->m_CommandTrigger ), UTIL_ToString( MinPlayers ) ) );
+					return false;
+				}
+
+				// reset start votes for all players
+				for( vector<CGamePlayer *> :: iterator i = m_Players.begin( ); i != m_Players.end( ); ++i ) {
+					(*i)->SetStartVote( false );
+				}
+
+				// keep track of when the votestart was started, to cancel it after the timeout
+				m_StartedVoteStartTime = GetTime( );			
+				if( m_FakePlayerPID != 255 ) {
+					DeleteFakePlayer( );
+				}
+				CONSOLE_Print( "[GAME: " + m_GameName + "] votestart started by player [" + User + "]" );
+			}
+
+			// set voted-state to true for player
+			player->SetStartVote( true );
+
+			// check if the required votes have been reached
+			uint32_t VotesNeeded = (uint32_t)ceil((GetNumHumanPlayers() - 1) * (float)m_GHost->m_VoteStartPercentage / 100);
+			uint32_t Votes = 0;
+
+			// recount total votestart votes
+			for( vector<CGamePlayer *> :: iterator i = m_Players.begin( ); i != m_Players.end( ); ++i ) {
+				if( (*i)->GetStartVote( ) ) {
+					Votes = Votes + 1;
+				}
+			}
+
+			// handle result
+			if(Votes < VotesNeeded) {
+				SendAllChat( m_GHost->m_Language->VoteStartXMoreVotesNeeded( UTIL_ToString(VotesNeeded - Votes) ) );
+			} else {
+				StartCountDown( true, 5 );
+			}
+		} else {
+			SendChat( player, "Error: cannot votestart because the game is locked. Owner is " + m_OwnerName );
+		}
 	}
 
 	return HideCommand;

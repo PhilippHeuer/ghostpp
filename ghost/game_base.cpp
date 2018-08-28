@@ -712,7 +712,7 @@ bool CBaseGame :: Update( void *fd, void *send_fd )
 			// this sometimes resulted in a countdown of e.g. "6 5 3 2 1" during my testing which looks pretty dumb
 			// doing it this way ensures it's always "5 4 3 2 1" but each interval might not be *exactly* the same length
 
-			SendAllChat( UTIL_ToString( m_CountDownCounter ) + ". . ." );
+			SendAllChat( m_GHost->m_Language->GameStartingIn( UTIL_ToString( m_CountDownCounter ) ) );
 			--m_CountDownCounter;
 		}
 		else if( !m_GameLoading && !m_GameLoaded )
@@ -1052,6 +1052,15 @@ bool CBaseGame :: Update( void *fd, void *send_fd )
 		SendAllChat( m_GHost->m_Language->VoteKickExpired( m_KickVotePlayer ) );
 		m_KickVotePlayer.clear( );
 		m_StartedKickVoteTime = 0;
+	}
+
+	// expire the votestart
+	
+	if( m_StartedVoteStartTime != 0 && GetTime( ) - m_StartedVoteStartTime >= 180 )
+	{
+		CONSOLE_Print( "[GAME: " + m_GameName + "] votestart expired" );
+		SendAllChat( "Votestart expired (180 seconds without pass)." );
+		m_StartedVoteStartTime = 0;
 	}
 
 	// start the gameover timer if there's only one player left
@@ -1601,6 +1610,21 @@ void CBaseGame :: EventPlayerDeleted( CGamePlayer *player )
 
 	m_KickVotePlayer.clear( );
 	m_StartedKickVoteTime = 0;
+
+	// abort the votestart
+	
+	if( m_StartedVoteStartTime != 0 && m_CountDownStarted )
+	{
+		SendAllChat( m_GHost->m_Language->VoteStartAborted( ) );
+	}
+	m_StartedVoteStartTime = 0;
+
+	// Send a notification that the game will autostart when n players joined
+
+	if( !m_CountDownStarted && m_AutoStartPlayers != 0 && GetTime( ) - m_LastAutoStartTime >= 0 ) {
+        // Player is not removed from list at this time, so playercount must be decremented
+		SendAllChat( m_GHost->m_Language->WaitingForPlayersBeforeAutoStart( UTIL_ToString( m_AutoStartPlayers ), UTIL_ToString( m_AutoStartPlayers - (GetNumHumanPlayers( ) - 1) ) ) );
+	}
 }
 
 void CBaseGame :: EventPlayerDisconnectTimedOut( CGamePlayer *player )
@@ -2132,6 +2156,11 @@ void CBaseGame :: EventPlayerJoined( CPotentialPlayer *potential, CIncomingJoinP
 
 	SendWelcomeMessage( Player );
 
+	// Send message that we are waiting until n players joined
+	if( !m_CountDownStarted && m_AutoStartPlayers != 0 && GetTime( ) - m_LastAutoStartTime >= 0 ) {
+		SendAllChat( m_GHost->m_Language->WaitingForPlayersBeforeAutoStart( UTIL_ToString( m_AutoStartPlayers ), UTIL_ToString( m_AutoStartPlayers - GetNumHumanPlayers( ) ) ) );
+	}
+
 	// if spoof checks are required and we won't automatically spoof check this player then tell them how to spoof check
 	// e.g. if automatic spoof checks are disabled, or if automatic spoof checks are done on admins only and this player isn't an admin
 
@@ -2521,6 +2550,11 @@ void CBaseGame :: EventPlayerJoinedWithScore( CPotentialPlayer *potential, CInco
 	// send a welcome message
 
 	SendWelcomeMessage( Player );
+
+	// Send message that we are waiting until n players joined
+	if( !m_CountDownStarted && m_AutoStartPlayers != 0 && GetTime( ) - m_LastAutoStartTime >= 0 ) {
+		SendAllChat( m_GHost->m_Language->WaitingForPlayersBeforeAutoStart( UTIL_ToString( m_AutoStartPlayers ), UTIL_ToString( m_AutoStartPlayers - GetNumHumanPlayers( ) ) ) );
+	}
 
 	// if spoof checks are required and we won't automatically spoof check this player then tell them how to spoof check
 	// e.g. if automatic spoof checks are disabled, or if automatic spoof checks are done on admins only and this player isn't an admin
