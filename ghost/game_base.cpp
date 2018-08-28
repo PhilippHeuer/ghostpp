@@ -596,7 +596,7 @@ bool CBaseGame :: Update( void *fd, void *send_fd )
 				if( m_GHost->m_MaxDownloaders > 0 && Downloaders > m_GHost->m_MaxDownloaders )
 					break;
 
-				// send up to 100 pieces of the map at once so that the download goes faster
+				// send up to 250 pieces of the map at once so that the download goes faster
 				// if we wait for each MAPPART packet to be acknowledged by the client it'll take a long time to download
 				// this is because we would have to wait the round trip time (the ping time) between sending every 1442 bytes of map data
 				// doing it this way allows us to send at least 140 KB in each round trip interval which is much more reasonable
@@ -612,7 +612,7 @@ bool CBaseGame :: Update( void *fd, void *send_fd )
 
 				uint32_t MapSize = UTIL_ByteArrayToUInt32( m_Map->GetMapSize( ), false );
 
-				while( (*i)->GetLastMapPartSent( ) < (*i)->GetLastMapPartAcked( ) + 1442 * 100 && (*i)->GetLastMapPartSent( ) < MapSize )
+				while( (*i)->GetLastMapPartSent( ) < (*i)->GetLastMapPartAcked( ) + 1442 * 250 && (*i)->GetLastMapPartSent( ) < MapSize )
 				{
 					if( (*i)->GetLastMapPartSent( ) == 0 )
 					{
