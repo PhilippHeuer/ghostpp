@@ -6,12 +6,18 @@ This fork builds a ready-to-run docker container around the ghost++ source.
 
 Additionally it contains the following changes:
 
+### Commands
+
 | Command       | Alias         | Description                   | Permissions    | Credits        |
 | ------------- |:-------------:| -----------------------------:| --------------:| --------------:|
 | startnow      | sn            | Start the game instantly      | Admin          | @maxemann96    |
 | startin       | si            | Start the game in x seconds   | Admin          | @maxemann96    |
 | votestart     | vs            | Vote to start the game        | Everyone       | @maxemann96    |
 | dlmap         |               | Download a map based on a url | Rootadmin      |                |
+
+### Features
+
+* Support to host random maps when using autohost to have bots host random maps of a specific gametype.
 
 ## Upstream Projects
 
