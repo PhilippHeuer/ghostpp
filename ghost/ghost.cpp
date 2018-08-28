@@ -43,6 +43,7 @@
 #include <stdlib.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp>
 #include <iostream>
 
 #ifdef WIN32
@@ -470,6 +471,8 @@ CGHost :: CGHost( CConfig *CFG )
 	m_AutoHostMatchMaking = false;
 	m_AutoHostMinimumScore = 0.0;
 	m_AutoHostMaximumScore = 0.0;
+	m_AutoHostRandomizeMapType = CFG->GetString( "autohost_randommap_type", string( "none" ) );
+	m_AutoHostRamdomizeMapList = CFG->GetString( "autohost_randommap_list", string( ) );
 	m_AllGamesFinished = false;
 	m_AllGamesFinishedTime = 0;
 	m_TFT = CFG->GetInt( "bot_tft", 1 ) == 0 ? false : true;
@@ -1000,13 +1003,49 @@ bool CGHost :: Update( long usecBlock )
 
 		if( !m_ExitingNice && m_Enabled && !m_CurrentGame && m_Games.size( ) < m_MaxGames && m_Games.size( ) < m_AutoHostMaximumGames )
 		{
-			if( m_AutoHostMap->GetValid( ) )
+			CMap *mapToHost = m_AutoHostMap;
+
+			// check if we should load a random map for the next game 
+			if( m_AutoHostRandomizeMapType != "none" )
+			{
+				CONSOLE_Print( "[GHOST] Loading random map for next autohosted game" ); 
+				 
+				// load random map
+				boost::filesystem::path newMap;
+				if( m_AutoHostRandomizeMapType == "random" )
+				{
+					std::vector<boost::filesystem::path> fileList = GetMapsInDirectory( m_MapPath, "w3" );
+
+					int randomIndex = rand() % fileList.size();
+					LoadMap( fileList[randomIndex].filename( ).string( ), NULL, "", false );
+				}
+				else if( m_AutoHostRandomizeMapType == "list" )
+				{
+					vector<string> mapList;
+					stringstream ss( m_AutoHostRamdomizeMapList );
+					while( ss.good() )
+					{
+						string substr;
+						getline( ss, substr, ',' );
+						mapList.push_back( substr );
+					}
+
+					int randomIndex = rand() % mapList.size();
+					LoadMap( mapList[randomIndex], NULL, "", false );
+				}
+
+				// overwrite autohost map
+				mapToHost = m_Map;
+			}
+ 
+			// autohost game
+			if( mapToHost->GetValid( ) )
 			{
 				string GameName = m_AutoHostGameName + " #" + UTIL_ToString( m_HostCounter );
 
 				if( GameName.size( ) <= 31 )
 				{
-					CreateGame( m_AutoHostMap, GAME_PUBLIC, false, GameName, m_AutoHostOwner, m_AutoHostOwner, m_AutoHostServer, false );
+					CreateGame( mapToHost, GAME_PUBLIC, false, GameName, m_AutoHostOwner, m_AutoHostOwner, m_AutoHostServer, false );
 
 					if( m_CurrentGame )
 					{
@@ -1481,19 +1520,20 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 	CONSOLE_Print("[GameThread] Made new game thread");
 }
 
+//
+// Load a map
+//
 void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 {
-	string FoundMaps;
 	string realmName = bnet == NULL ? "SYSTEM" : "BNET: " + bnet->GetServerAlias( );
 	CONSOLE_Print( "[" + realmName + "] trying to load map  [" + MapName + "] ..." );
 
 	try
 	{
-		boost::filesystem::path MapPath( m_MapPath );
 		string Pattern = MapName;
 		transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
 
-		if( !exists( MapPath ) )
+		if( !boost::filesystem::exists( m_MapPath ) )
 		{
 			CONSOLE_Print( "[" + realmName + "] error listing maps - map path doesn't exist" );
 
@@ -1502,63 +1542,38 @@ void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 		}
 		else
 		{
-			boost::filesystem::directory_iterator EndIterator;
-			boost::filesystem::path LastMatch;
-			uint32_t Matches = 0;
+			string Pattern = MapName;
+			transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
+			std::vector<boost::filesystem::path> fileList = GetMapsInDirectory( m_MapPath, Pattern );
 
-			for( boost::filesystem::directory_iterator i( MapPath ); i != EndIterator; ++i )
-			{
-				string FileName = i->path( ).filename( ).string( );
-				string Stem = i->path( ).stem( ).string( );
-				transform( FileName.begin( ), FileName.end( ), FileName.begin( ), (int(*)(int))tolower );
-				transform( Stem.begin( ), Stem.end( ), Stem.begin( ), (int(*)(int))tolower );
-
-				if( !boost::filesystem::is_directory( i->status( ) ) && FileName.find( Pattern ) != string :: npos )
-				{
-					LastMatch = i->path( );
-					++Matches;
-
-					if( FoundMaps.empty( ) )
-						FoundMaps = i->path( ).filename( ).string( );
-					else
-						FoundMaps += ", " + i->path( ).filename( ).string( );
-
-					// if the pattern matches the filename exactly, with or without extension, stop any further matching
-
-					if( FileName == Pattern || Stem == Pattern )
-					{
-						Matches = 1;
-						break;
-					}
-				}
-			}
-
-			if( Matches == 0 )
+			if( fileList.size() == 0 )
 			{
 				CONSOLE_Print( "[" + realmName + "] " + m_Language->NoMapsFound( ) );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->NoMapsFound( ), User, Whisper );
 			}
-			else if( Matches == 1 )
+			else if( fileList.size() == 1 )
 			{
-				string File = LastMatch.filename( ).string( );
-
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->LoadingConfigFile( File ) );
+				string File = fileList.front( ).filename( ).string( );
+				
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->LoadingConfigFile( m_MapPath + File ) );
 				if ( !User.empty() )
-					bnet->QueueChatCommand( m_Language->LoadingConfigFile( File ), User, Whisper );
+					bnet->QueueChatCommand( m_Language->LoadingConfigFile( m_MapPath + File ), User, Whisper );
 
 				// create a config file in memory with the required information to load the map
 
 				CConfig MapCFG;
 				MapCFG.Set( "map_path", "Maps\\Download\\" + File );
 				MapCFG.Set( "map_localpath", File );
-				m_Map = new CMap( this, &MapCFG, m_MapCFGPath + File );
+				m_Map = new CMap( this, &MapCFG, fileList.front( ).string( ) );
 			}
 			else
 			{
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->FoundMaps( FoundMaps ) );
+				/*
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->FoundMaps( boost::algorithm::join(fileList, ",") ) );
 				if ( !User.empty() )
-					bnet->QueueChatCommand( m_Language->FoundMaps( FoundMaps ), User, Whisper );
+					bnet->QueueChatCommand( m_Language->FoundMaps( boost::algorithm::join(fileList, ",") ), User, Whisper );
+				*/
 			}
 		}
 	}
@@ -1571,19 +1586,17 @@ void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 	}
 }
 
+//
+// Load a map configuration file
+//
 void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bool Whisper )
 {
-	string FoundMapConfigs;
 	string realmName = bnet == NULL ? "SYSTEM" : "BNET: " + bnet->GetServerAlias( );
 	CONSOLE_Print( "[" + realmName + "] trying to load map config  [" + MapConfigName + "] ..." );
 
 	try
 	{
-		boost::filesystem::path MapCFGPath( m_MapCFGPath );
-		string Pattern = MapConfigName;
-		transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
-
-		if( !exists( MapCFGPath ) )
+		if( !boost::filesystem::exists( m_MapCFGPath ) )
 		{
 			CONSOLE_Print( "[" + realmName + "] error listing map configs - map config path doesn't exist" );
 
@@ -1592,60 +1605,35 @@ void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bo
 		}
 		else
 		{
-			boost::filesystem::directory_iterator EndIterator;
-			boost::filesystem::path LastMatch;
-			uint32_t Matches = 0;
+			string Pattern = MapConfigName;
+			transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
+			std::vector<boost::filesystem::path> fileList = GetMapConfigsInDirectory( m_MapCFGPath, Pattern );
 
-			for( boost::filesystem::directory_iterator i( MapCFGPath ); i != EndIterator; ++i )
-			{
-				string FileName = i->path( ).filename( ).string( );
-				string Stem = i->path( ).stem( ).string( );
-				transform( FileName.begin( ), FileName.end( ), FileName.begin( ), (int(*)(int))tolower );
-				transform( Stem.begin( ), Stem.end( ), Stem.begin( ), (int(*)(int))tolower );
-
-				if( !boost::filesystem::is_directory( i->status( ) ) && i->path( ).extension( ) == ".cfg" && FileName.find( Pattern ) != string :: npos )
-				{
-					LastMatch = i->path( );
-					++Matches;
-
-					if( FoundMapConfigs.empty( ) )
-						FoundMapConfigs = i->path( ).filename( ).string( );
-					else
-						FoundMapConfigs += ", " + i->path( ).filename( ).string( );
-
-					// if the pattern matches the filename exactly, with or without extension, stop any further matching
-
-					if( FileName == Pattern || Stem == Pattern )
-					{
-						Matches = 1;
-						break;
-					}
-				}
-			}
-
-			if( Matches == 0 )
+			if( fileList.size() == 0 )
 			{
 				CONSOLE_Print( "[" + realmName + "] " + m_Language->NoMapConfigsFound( ) );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->NoMapConfigsFound( ), User, Whisper );
 			}
-			else if( Matches == 1 )
+			else if( fileList.size() == 1 )
 			{
-				string File = LastMatch.filename( ).string( );
+				string File = fileList.front( ).filename( ).string( );
 				
 				CONSOLE_Print( "[" + realmName + "] " + m_Language->LoadingConfigFile( m_MapCFGPath + File ) );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->LoadingConfigFile( m_MapCFGPath + File ), User, Whisper );
 
 				CConfig MapCFG;
-				MapCFG.Read( LastMatch.string( ) );
+				MapCFG.Read( fileList.front( ).string( ) );
 				m_Map = new CMap( this, &MapCFG, m_MapCFGPath + File );
 			}
 			else
 			{
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->FoundMapConfigs( FoundMapConfigs ) );
+				/*
+				CONSOLE_Print( "[" + realmName + "] " + m_Language->FoundMapConfigs( boost::algorithm::join(fileList, ",") ) );
 				if ( !User.empty() )
-					bnet->QueueChatCommand( m_Language->FoundMapConfigs( FoundMapConfigs ), User, Whisper );
+					bnet->QueueChatCommand( m_Language->FoundMapConfigs( boost::algorithm::join(fileList, ",") ), User, Whisper );
+				*/
 			}
 		}
 	}
@@ -1656,4 +1644,80 @@ void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bo
 		if ( !User.empty() )
 			bnet->QueueChatCommand( m_Language->ErrorListingMapConfigs( ), User, Whisper );
 	}
+}
+
+//
+// Get Files in Directory
+//
+std::vector<boost::filesystem::path> CGHost :: GetFilesInDirectory( boost::filesystem::path ParentDirectory, string Pattern )
+{
+	std::vector<boost::filesystem::path> fileList;
+
+	try
+	{
+		transform( Pattern.begin( ), Pattern.end( ), Pattern.begin( ), (int(*)(int))tolower );
+
+		if( !exists( ParentDirectory ) )
+		{
+			CONSOLE_Print( "[SYSTEM] error listing map configs - map config path doesn't exist" );
+		}
+		else
+		{
+			boost::filesystem::directory_iterator EndIterator;
+			for( boost::filesystem::directory_iterator i( ParentDirectory ); i != EndIterator; ++i )
+			{
+				string FileName = i->path( ).filename( ).string( );
+				transform( FileName.begin( ), FileName.end( ), FileName.begin( ), (int(*)(int))tolower );
+
+				if( !boost::filesystem::is_directory( i->status( ) ) && FileName.find( Pattern ) != string :: npos )
+				{
+					fileList.push_back( i->path( ) );
+				}
+			}
+		}
+	}
+	catch( const exception &ex )
+	{
+		CONSOLE_Print( "[SYSTEM] error listing directories in folder [" + ParentDirectory.string( ) + "]" );
+	}
+
+	return fileList;
+}
+
+//
+// Get all maps within a directory that match the filename 
+//
+std::vector<boost::filesystem::path> CGHost :: GetMapsInDirectory( boost::filesystem::path ParentDirectory, string Filename )
+{
+	std::vector<boost::filesystem::path> resultList;
+	std::vector<boost::filesystem::path> fileList = GetFilesInDirectory( ParentDirectory, Filename );
+
+	for (std::vector<boost::filesystem::path>::const_iterator i = fileList.begin(), end = fileList.end(); i != end; ++i)
+	{
+		if ( (*i).extension() == ".w3m" || (*i).extension() == ".w3x" )
+		{
+			resultList.push_back((*i));
+		}
+	}
+
+	return resultList;
+}
+
+//
+// Get all map configs within a directory that match the filename 
+//
+std::vector<boost::filesystem::path> CGHost :: GetMapConfigsInDirectory( boost::filesystem::path ParentDirectory, string Filename )
+{
+	std::vector<boost::filesystem::path> resultList;
+	std::vector<boost::filesystem::path> fileList = GetFilesInDirectory( ParentDirectory, Filename );
+
+	for (std::vector<boost::filesystem::path>::const_iterator i = fileList.begin(), end = fileList.end(); i != end; ++i)
+	{
+		if ( (*i).extension() == ".cfg" )
+		{
+			resultList.push_back((*i));
+		}
+	}
+
+	return resultList;
 }
