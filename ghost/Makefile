@@ -4,7 +4,7 @@ C++ = g++
 CC = gcc
 DFLAGS = -DGHOST_MYSQL
 OFLAGS = -O3
-LFLAGS = -L. -lbncsutil -lpthread -ldl -lz -lstorm -lmysqlclient -lboost_date_time -lboost_thread -lboost_system -lboost_filesystem -lgmp -lcurl
+LFLAGS = -L. -lbncsutil -lpthread -ldl -lz -lstorm -lmysqlclient -lboost_date_time -lboost_thread -lboost_system -lboost_filesystem -lboost_log_setup -lboost_log -lgmp -lcurl
 CFLAGS =
 
 ifeq ($(SYSTEM),Darwin)

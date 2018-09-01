@@ -51,7 +51,7 @@ void CSaveGame :: ParseSaveGame( )
 
 	if( m_Flags != 0 )
 	{
-		CONSOLE_Print( "[SAVEGAME] invalid replay (flags mismatch)" );
+		BOOST_LOG_TRIVIAL(warning) << "[SAVEGAME] invalid replay (flags mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -88,7 +88,7 @@ void CSaveGame :: ParseSaveGame( )
 
 	if( m_NumSlots > MAX_SLOTS )
 	{
-		CONSOLE_Print( "[SAVEGAME] invalid savegame (too many slots)" );
+		BOOST_LOG_TRIVIAL(warning) << "[SAVEGAME] invalid savegame (too many slots)";
 		m_Valid = false;
 		return;
 	}
@@ -107,7 +107,7 @@ void CSaveGame :: ParseSaveGame( )
 
 	if( ISS.eof( ) || ISS.fail( ) )
 	{
-		CONSOLE_Print( "[SAVEGAME] failed to parse savegame header" );
+		BOOST_LOG_TRIVIAL(warning) << "[SAVEGAME] failed to parse savegame header";
 		m_Valid = false;
 		return;
 	}

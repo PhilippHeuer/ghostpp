@@ -334,7 +334,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_SLOTINFOJOIN( unsigned char PID, BYTEARRAY 
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] invalid parameters passed to SEND_W3GS_SLOTINFOJOIN" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] invalid parameters passed to SEND_W3GS_SLOTINFOJOIN";
 
 	// DEBUG_Print( "SENT W3GS_SLOTINFOJOIN" );
 	// DEBUG_Print( packet );
@@ -390,7 +390,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_PLAYERINFO( unsigned char PID, string name,
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] invalid parameters passed to SEND_W3GS_PLAYERINFO" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] invalid parameters passed to SEND_W3GS_PLAYERINFO";
 
 	// DEBUG_Print( "SENT W3GS_PLAYERINFO" );
 	// DEBUG_Print( packet );
@@ -412,7 +412,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_PLAYERLEAVE_OTHERS( unsigned char PID, uint
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] invalid parameters passed to SEND_W3GS_PLAYERLEAVE_OTHERS" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] invalid parameters passed to SEND_W3GS_PLAYERLEAVE_OTHERS";
 
 	// DEBUG_Print( "SENT W3GS_PLAYERLEAVE_OTHERS" );
 	// DEBUG_Print( packet );
@@ -433,7 +433,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_GAMELOADED_OTHERS( unsigned char PID )
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] invalid parameters passed to SEND_W3GS_GAMELOADED_OTHERS" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] invalid parameters passed to SEND_W3GS_GAMELOADED_OTHERS";
 
 	// DEBUG_Print( "SENT W3GS_GAMELOADED_OTHERS" );
 	// DEBUG_Print( packet );
@@ -542,7 +542,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_CHAT_FROM_HOST( unsigned char fromPID, BYTE
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] invalid parameters passed to SEND_W3GS_CHAT_FROM_HOST" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] invalid parameters passed to SEND_W3GS_CHAT_FROM_HOST";
 
 	// DEBUG_Print( "SENT W3GS_CHAT_FROM_HOST" );
 	// DEBUG_Print( packet );
@@ -600,7 +600,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_START_LAG( vector<CGamePlayer *> players, b
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] no laggers passed to SEND_W3GS_START_LAG" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] no laggers passed to SEND_W3GS_START_LAG";
 
 	// DEBUG_Print( "SENT W3GS_START_LAG" );
 	// DEBUG_Print( packet );
@@ -705,7 +705,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_GAMEINFO( bool TFT, unsigned char war3Versi
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] invalid parameters passed to SEND_W3GS_GAMEINFO" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] invalid parameters passed to SEND_W3GS_GAMEINFO";
 
 	// DEBUG_Print( "SENT W3GS_GAMEINFO" );
 	// DEBUG_Print( packet );
@@ -793,7 +793,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_MAPCHECK( string mapPath, BYTEARRAY mapSize
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] invalid parameters passed to SEND_W3GS_MAPCHECK" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] invalid parameters passed to SEND_W3GS_MAPCHECK";
 
 	// DEBUG_Print( "SENT W3GS_MAPCHECK" );
 	// DEBUG_Print( packet );
@@ -853,7 +853,7 @@ BYTEARRAY CGameProtocol :: SEND_W3GS_MAPPART( unsigned char fromPID, unsigned ch
 		AssignLength( packet );
 	}
 	else
-		CONSOLE_Print( "[GAMEPROTO] invalid parameters passed to SEND_W3GS_MAPPART" );
+		BOOST_LOG_TRIVIAL(warning) << "[GAMEPROTO] invalid parameters passed to SEND_W3GS_MAPPART";
 
 	// DEBUG_Print( "SENT W3GS_MAPPART" );
 	// DEBUG_Print( packet );
