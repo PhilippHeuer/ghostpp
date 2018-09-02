@@ -2155,6 +2155,10 @@ void CBaseGame :: EventPlayerJoined( CPotentialPlayer *potential, CIncomingJoinP
 
 	SendWelcomeMessage( Player );
 
+	// announce the new player to all players in chat (with origin server)
+
+	SendAllChat( m_GHost->m_Language->PlayerJoinedGame( Player->GetName( ), Player->GetJoinedRealm( ) ) );
+
 	// Send message that we are waiting until n players joined
 	if( !m_CountDownStarted && m_AutoStartPlayers != 0 && GetTime( ) - m_LastAutoStartTime >= 0 ) {
 		SendAllChat( m_GHost->m_Language->WaitingForPlayersBeforeAutoStart( UTIL_ToString( m_AutoStartPlayers ), UTIL_ToString( m_AutoStartPlayers - GetNumHumanPlayers( ) ) ) );
@@ -2549,6 +2553,10 @@ void CBaseGame :: EventPlayerJoinedWithScore( CPotentialPlayer *potential, CInco
 	// send a welcome message
 
 	SendWelcomeMessage( Player );
+
+	// announce the new player to all players in chat (with origin server)
+	
+	SendAllChat( m_GHost->m_Language->PlayerJoinedGame( Player->GetName( ), Player->GetJoinedRealm( ) ) );
 
 	// Send message that we are waiting until n players joined
 	if( !m_CountDownStarted && m_AutoStartPlayers != 0 && GetTime( ) - m_LastAutoStartTime >= 0 ) {

@@ -258,6 +258,7 @@ public:
 	string VoteStartAborted( );
 	string VoteStartMinPlayers( string trigger, string minplayers );
 	string VoteStartXMoreVotesNeeded( string votesNeeded );
+	string PlayerJoinedGame( string playerName, string serverName );
 };
 
 #endif

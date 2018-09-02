@@ -1560,3 +1560,11 @@ string CLanguage :: VoteStartXMoreVotesNeeded( string votesNeeded )
 	UTIL_Replace( Out, "$VOTESNEEDED$", votesNeeded );
 	return Out;
 }
+
+string CLanguage :: PlayerJoinedGame( string playerName, string serverName )
+{
+	string Out = m_CFG->GetString( "lang_1004", "lang_1004" );
+	UTIL_Replace( Out, "$PLAYER$", playerName );
+	UTIL_Replace( Out, "$SERVER$", serverName );
+	return Out;
+}
