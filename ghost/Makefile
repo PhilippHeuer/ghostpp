@@ -71,7 +71,7 @@ ghostdbmysql.o: ghost.h includes.h util.h config.h ghostdb.h ghostdbmysql.h
 ghostdbsqlite.o: ghost.h includes.h util.h config.h ghostdb.h ghostdbsqlite.h
 gpsprotocol.o: ghost.h util.h gpsprotocol.h
 language.o: ghost.h includes.h config.h language.h
-map.o: ghost.h includes.h util.h crc32.h sha1.h config.h map.h
+map.o: ghost.h includes.h util.h crc32.h sha1.h config.h map.h bnet.h
 packed.o: ghost.h includes.h util.h crc32.h packed.h
 replay.o: ghost.h includes.h util.h packed.h replay.h gameprotocol.h
 savegame.o: ghost.h includes.h util.h packed.h savegame.h

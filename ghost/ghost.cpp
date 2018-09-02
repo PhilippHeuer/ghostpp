@@ -479,7 +479,7 @@ CGHost :: CGHost( CConfig *CFG )
 		int BNLSPort = CFG->GetInt( Prefix + "bnlsport", 9367 );
 		int BNLSWardenCookie = CFG->GetInt( Prefix + "bnlswardencookie", 0 );
 		unsigned char War3Version = CFG->GetInt( Prefix + "custom_war3version", 30 );
-		string War3PathCustom = CFG->GetString( Prefix + "custom_war3path", string( ) );
+		string War3PathCustom = UTIL_AddPathSeperator( CFG->GetString( Prefix + "custom_war3path", string( ) ) );
 		BYTEARRAY EXEVersion = UTIL_ExtractNumbers( CFG->GetString( Prefix + "custom_exeversion", string( ) ), 4 );
 		BYTEARRAY EXEVersionHash = UTIL_ExtractNumbers( CFG->GetString( Prefix + "custom_exeversionhash", string( ) ), 4 );
 		string PasswordHashType = CFG->GetString( Prefix + "custom_passwordhashtype", string( ) );
@@ -524,7 +524,7 @@ CGHost :: CGHost( CConfig *CFG )
 #endif
 		}
 
-		m_BNETs.push_back( new CBNET( this, Server, ServerAlias, BNLSServer, (uint16_t)BNLSPort, (uint32_t)BNLSWardenCookie, CDKeyROC, CDKeyTFT, CountryAbbrev, Country, LocaleID, UserName, UserPassword, FirstChannel, RootAdmin, BNETCommandTrigger[0], HoldFriends, HoldClan, PublicCommands, War3Version, War3PathCustom, EXEVersion, EXEVersionHash, PasswordHashType, PVPGNRealmName, MaxMessageLength, i ) );
+		m_BNETs.push_back( new CBNET( this, m_BNETs.size(), Server, ServerAlias, BNLSServer, (uint16_t)BNLSPort, (uint32_t)BNLSWardenCookie, CDKeyROC, CDKeyTFT, CountryAbbrev, Country, LocaleID, UserName, UserPassword, FirstChannel, RootAdmin, BNETCommandTrigger[0], HoldFriends, HoldClan, PublicCommands, War3Version, m_Warcraft3Path + War3PathCustom, EXEVersion, EXEVersionHash, PasswordHashType, PVPGNRealmName, MaxMessageLength, i ) );
 	}
 
 	if( m_BNETs.empty( ) )
@@ -1234,7 +1234,7 @@ void CGHost :: LoadIPToCountryData( )
 		// todotodo: handle begin/commit failures a bit more gracefully
 
 		if( !m_DBLocal->Begin( ) )
-			BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - failed to begin local database transaction, iptocountry data not loaded";
+			BOOST_LOG_TRIVIAL(warning) << "[GHOST] warning - failed to begin local database transaction, iptocountry data not loaded";
 		else
 		{
 			unsigned char Percent = 0;
@@ -1271,12 +1271,12 @@ void CGHost :: LoadIPToCountryData( )
 				if( NewPercent != Percent && NewPercent % 10 == 0 )
 				{
 					Percent = NewPercent;
-					BOOST_LOG_TRIVIAL(info) << "[GHOST] iptocountry data: " + UTIL_ToString( Percent ) + "% loaded";
+					BOOST_LOG_TRIVIAL(debug) << "[GHOST] iptocountry data: " + UTIL_ToString( Percent ) + "% loaded";
 				}
 			}
 
 			if( !m_DBLocal->Commit( ) )
-				BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - failed to commit local database transaction, iptocountry data not loaded";
+				BOOST_LOG_TRIVIAL(warning) << "[GHOST] warning - failed to commit local database transaction, iptocountry data not loaded";
 			else
 				BOOST_LOG_TRIVIAL(info) << "[GHOST] finished loading [ip-to-country.csv]";
 		}

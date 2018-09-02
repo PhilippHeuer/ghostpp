@@ -100,8 +100,8 @@ private:
 	string m_MapPath;							// config value: map path
 	BYTEARRAY m_MapSize;						// config value: map size (4 bytes)
 	BYTEARRAY m_MapInfo;						// config value: map info (4 bytes) -> this is the real CRC
-	BYTEARRAY m_MapCRC;							// config value: map crc (4 bytes) -> this is not the real CRC, it's the "xoro" value
-	BYTEARRAY m_MapSHA1;						// config value: map sha1 (20 bytes)
+	vector<BYTEARRAY> m_BnetMapCRC;				// config value: map crc (4 bytes) -> this is not the real CRC, it's the "xoro" value
+	vector<BYTEARRAY> m_BnetMapSHA1;			// config value: map sha1 (20 bytes)
 	unsigned char m_MapSpeed;
 	unsigned char m_MapVisibility;
 	unsigned char m_MapObservers;
@@ -135,8 +135,8 @@ public:
 	string GetMapPath( )					{ return m_MapPath; }
 	BYTEARRAY GetMapSize( )					{ return m_MapSize; }
 	BYTEARRAY GetMapInfo( )					{ return m_MapInfo; }
-	BYTEARRAY GetMapCRC( )					{ return m_MapCRC; }
-	BYTEARRAY GetMapSHA1( )					{ return m_MapSHA1; }
+	BYTEARRAY GetMapCRC( uint32_t i )		{ return m_BnetMapCRC[i]; }
+	BYTEARRAY GetMapSHA1( uint32_t i )		{ return m_BnetMapSHA1[i]; }
 	unsigned char GetMapSpeed( )			{ return m_MapSpeed; }
 	unsigned char GetMapVisibility( )		{ return m_MapVisibility; }
 	unsigned char GetMapObservers( )		{ return m_MapObservers; }

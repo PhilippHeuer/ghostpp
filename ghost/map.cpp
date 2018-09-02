@@ -24,6 +24,7 @@
 #include "sha1.h"
 #include "config.h"
 #include "map.h"
+#include "bnet.h"
 
 #define __STORMLIB_SELF__
 #include <stormlib/StormLib.h>
@@ -34,23 +35,6 @@
 //
 // CMap
 //
-
-CMap :: CMap( CGHost *nGHost ) : m_GHost( nGHost ), m_Valid( true ), m_MapPath( "Maps\\FrozenThrone\\(12)EmeraldGardens.w3x" ), m_MapSize( UTIL_ExtractNumbers( "174 221 4 0", 4 ) ), m_MapInfo( UTIL_ExtractNumbers( "251 57 68 98", 4 ) ), m_MapCRC( UTIL_ExtractNumbers( "108 250 204 59", 4 ) ), m_MapSHA1( UTIL_ExtractNumbers( "35 81 104 182 223 63 204 215 1 17 87 234 220 66 3 185 82 99 6 13", 20 ) ), m_MapSpeed( MAPSPEED_FAST ), m_MapVisibility( MAPVIS_DEFAULT ), m_MapObservers( MAPOBS_NONE ), m_MapFlags( MAPFLAG_TEAMSTOGETHER | MAPFLAG_FIXEDTEAMS ), m_MapFilterMaker( MAPFILTER_MAKER_BLIZZARD ), m_MapFilterType( MAPFILTER_TYPE_MELEE ), m_MapFilterSize( MAPFILTER_SIZE_LARGE ), m_MapFilterObs( MAPFILTER_OBS_NONE ), m_MapOptions( MAPOPT_MELEE ), m_MapWidth( UTIL_ExtractNumbers( "172 0", 2 ) ), m_MapHeight( UTIL_ExtractNumbers( "172 0", 2 ) ), m_MapLoadInGame( false ), m_MapNumPlayers( 12 ), m_MapNumTeams( 12 )
-{
-	BOOST_LOG_TRIVIAL(info) << "[MAP] using hardcoded Emerald Gardens map data for Warcraft 3 version 1.24 & 1.24b";
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 0, 0, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 1, 1, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 2, 2, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 3, 3, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 4, 4, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 5, 5, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 6, 6, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 7, 7, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 8, 8, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 9, 9, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 10, 10, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-	m_Slots.push_back( CGameSlot( 0, 255, SLOTSTATUS_OPEN, 0, 11, 11, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE ) );
-}
 
 CMap :: CMap( CGHost *nGHost, CConfig *CFG, string nCFGFile ) : m_GHost( nGHost )
 {
@@ -275,179 +259,215 @@ void CMap :: Load( CConfig *CFG, string nCFGFile )
 		MapInfo = UTIL_CreateByteArray( (uint32_t)m_GHost->m_CRC->FullCRC( (unsigned char *)m_MapData.c_str( ), m_MapData.size( ) ), false );
 		BOOST_LOG_TRIVIAL(info) << "[MAP] calculated map_info = " + UTIL_ByteArrayToDecString( MapInfo );
 
-		// calculate map_crc (this is not the CRC) and map_sha1
-		// a big thank you to Strilanc for figuring the map_crc algorithm out
-
-		string CommonJ = UTIL_FileRead( m_GHost->m_MapCFGPath + "common.j" );
-
-		if( CommonJ.empty( ) )
-			BOOST_LOG_TRIVIAL(info) << "[MAP] unable to calculate map_crc/sha1 - unable to read file [" + m_GHost->m_MapCFGPath + "common.j]";
-		else
+		// initialize checksum vectors with placeholders
+		m_BnetMapCRC.clear();
+		m_BnetMapSHA1.clear();
+		for( uint32_t i = 1; i < 10; ++i )
 		{
-			string BlizzardJ = UTIL_FileRead( m_GHost->m_MapCFGPath + "blizzard.j" );
+			m_BnetMapCRC.push_back( MapCRC );
+			m_BnetMapSHA1.push_back( MapSHA1 );
+		}
 
+		// calculate checksums with custom .j files on a per-realm basis to support multiple wc3 versions
+		
+		for( vector<CBNET *> :: iterator bnet = m_GHost->m_BNETs.begin(), bnetEnd = m_GHost->m_BNETs.end(); bnet != bnetEnd; ++bnet)
+		{
+			// common.j
+			string CommonJFile = m_GHost->m_MapCFGPath + "common.j";
+			if ( !(*bnet)->GetWar3CustomPath().empty() && UTIL_FileExists( (*bnet)->GetWar3CustomPath() + "scripts/common.j" ) )
+			{
+				CommonJFile = (*bnet)->GetWar3CustomPath() + "scripts/common.j";
+			}
+			BOOST_LOG_TRIVIAL(debug) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] trying to use common.j from path [" + CommonJFile + "]";
+			string CommonJ = UTIL_FileRead( CommonJFile );
+			if( CommonJ.empty( ) )
+			{
+				BOOST_LOG_TRIVIAL(warning) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] unable to calculate map_crc/sha1 - unable to read file [" + CommonJFile + "]";
+				continue;
+			}
+
+			// blizzard.j
+			string BlizzardJFile = m_GHost->m_MapCFGPath + "blizzard.j";
+			if ( !(*bnet)->GetWar3CustomPath().empty() && UTIL_FileExists( (*bnet)->GetWar3CustomPath() + "scripts/blizzard.j" ) )
+			{
+				BlizzardJFile = (*bnet)->GetWar3CustomPath() + "scripts/blizzard.j";
+			}
+			BOOST_LOG_TRIVIAL(debug) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] trying to use blizzard.j from path [" + BlizzardJFile + "]";
+			string BlizzardJ = UTIL_FileRead( BlizzardJFile );
 			if( BlizzardJ.empty( ) )
-				BOOST_LOG_TRIVIAL(info) << "[MAP] unable to calculate map_crc/sha1 - unable to read file [" + m_GHost->m_MapCFGPath + "blizzard.j]";
+			{
+				BOOST_LOG_TRIVIAL(warning) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] unable to calculate map_crc/sha1 - unable to read file [" + BlizzardJFile + "]";
+				continue;
+			}
+
+			// calculate map_crc (this is not the CRC) and map_sha1
+			// a big thank you to Strilanc for figuring the map_crc algorithm out
+
+			uint32_t Val = 0;
+
+			// update: it's possible for maps to include their own copies of common.j and/or blizzard.j
+			// this code now overrides the default copies if required
+
+			bool OverrodeCommonJ = false;
+			bool OverrodeBlizzardJ = false;
+
+			if( MapMPQReady )
+			{
+				HANDLE SubFile;
+
+				// override common.j
+
+				if( SFileOpenFileEx( MapMPQ, "Scripts\\common.j", 0, &SubFile ) )
+				{
+					uint32_t FileLength = SFileGetFileSize( SubFile, NULL );
+
+					if( FileLength > 0 && FileLength != 0xFFFFFFFF )
+					{
+						char *SubFileData = new char[FileLength];
+						DWORD BytesRead = 0;
+
+						if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
+						{
+							BOOST_LOG_TRIVIAL(info) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] overriding default common.j with map copy while calculating map_crc/sha1";
+							OverrodeCommonJ = true;
+							Val = Val ^ XORRotateLeft( (unsigned char *)SubFileData, BytesRead );
+							m_GHost->m_SHA->Update( (unsigned char *)SubFileData, BytesRead );
+						}
+
+						delete [] SubFileData;
+					}
+
+					SFileCloseFile( SubFile );
+				}
+			}
+
+			if( !OverrodeCommonJ )
+			{
+				Val = Val ^ XORRotateLeft( (unsigned char *)CommonJ.c_str( ), CommonJ.size( ) );
+				m_GHost->m_SHA->Update( (unsigned char *)CommonJ.c_str( ), CommonJ.size( ) );
+			}
+
+			if( MapMPQReady )
+			{
+				HANDLE SubFile;
+
+				// override blizzard.j
+
+				if( SFileOpenFileEx( MapMPQ, "Scripts\\blizzard.j", 0, &SubFile ) )
+				{
+					uint32_t FileLength = SFileGetFileSize( SubFile, NULL );
+
+					if( FileLength > 0 && FileLength != 0xFFFFFFFF )
+					{
+						char *SubFileData = new char[FileLength];
+						DWORD BytesRead = 0;
+
+						if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
+						{
+							BOOST_LOG_TRIVIAL(debug) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] overriding default blizzard.j with map copy while calculating map_crc/sha1";
+							OverrodeBlizzardJ = true;
+							Val = Val ^ XORRotateLeft( (unsigned char *)SubFileData, BytesRead );
+							m_GHost->m_SHA->Update( (unsigned char *)SubFileData, BytesRead );
+						}
+
+						delete [] SubFileData;
+					}
+
+					SFileCloseFile( SubFile );
+				}
+			}
+
+			if( !OverrodeBlizzardJ )
+			{
+				Val = Val ^ XORRotateLeft( (unsigned char *)BlizzardJ.c_str( ), BlizzardJ.size( ) );
+				m_GHost->m_SHA->Update( (unsigned char *)BlizzardJ.c_str( ), BlizzardJ.size( ) );
+			}
+
+			Val = ROTL( Val, 3 );
+			Val = ROTL( Val ^ 0x03F1379E, 3 );
+			m_GHost->m_SHA->Update( (unsigned char *)"\x9E\x37\xF1\x03", 4 );
+
+			if( MapMPQReady )
+			{
+				vector<string> FileList;
+				FileList.push_back( "war3map.j" );
+				FileList.push_back( "scripts\\war3map.j" );
+				FileList.push_back( "war3map.w3e" );
+				FileList.push_back( "war3map.wpm" );
+				FileList.push_back( "war3map.doo" );
+				FileList.push_back( "war3map.w3u" );
+				FileList.push_back( "war3map.w3b" );
+				FileList.push_back( "war3map.w3d" );
+				FileList.push_back( "war3map.w3a" );
+				FileList.push_back( "war3map.w3q" );
+				bool FoundScript = false;
+
+				for( vector<string> :: iterator i = FileList.begin( ); i != FileList.end( ); ++i )
+				{
+					// don't use scripts\war3map.j if we've already used war3map.j (yes, some maps have both but only war3map.j is used)
+
+					if( FoundScript && *i == "scripts\\war3map.j" )
+						continue;
+
+					HANDLE SubFile;
+
+					if( SFileOpenFileEx( MapMPQ, (*i).c_str( ), 0, &SubFile ) )
+					{
+						uint32_t FileLength = SFileGetFileSize( SubFile, NULL );
+
+						if( FileLength > 0 && FileLength != 0xFFFFFFFF )
+						{
+							char *SubFileData = new char[FileLength];
+							DWORD BytesRead = 0;
+
+							if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
+							{
+								if( *i == "war3map.j" || *i == "scripts\\war3map.j" )
+									FoundScript = true;
+
+								Val = ROTL( Val ^ XORRotateLeft( (unsigned char *)SubFileData, BytesRead ), 3 );
+								m_GHost->m_SHA->Update( (unsigned char *)SubFileData, BytesRead );
+								// DEBUG_Print( "*** found: " + *i );
+							}
+
+							delete [] SubFileData;
+						}
+
+						SFileCloseFile( SubFile );
+					}
+					else
+					{
+						// DEBUG_Print( "*** not found: " + *i );
+					}
+				}
+
+				if( !FoundScript )
+					BOOST_LOG_TRIVIAL(warning) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] couldn't find war3map.j or scripts\\war3map.j in MPQ file, calculated map_crc/sha1 is probably wrong";
+
+				MapCRC = UTIL_CreateByteArray( Val, false );
+				BOOST_LOG_TRIVIAL(debug) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] calculated map_crc = " + UTIL_ByteArrayToDecString( MapCRC );
+
+				m_GHost->m_SHA->Final( );
+				unsigned char SHA1[20];
+				memset( SHA1, 0, sizeof( unsigned char ) * 20 );
+				m_GHost->m_SHA->GetHash( SHA1 );
+				MapSHA1 = UTIL_CreateByteArray( SHA1, 20 );
+				BOOST_LOG_TRIVIAL(debug) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] calculated map_sha1 = " + UTIL_ByteArrayToDecString( MapSHA1 );
+			}
 			else
 			{
-				uint32_t Val = 0;
-
-				// update: it's possible for maps to include their own copies of common.j and/or blizzard.j
-				// this code now overrides the default copies if required
-
-				bool OverrodeCommonJ = false;
-				bool OverrodeBlizzardJ = false;
-
-				if( MapMPQReady )
-				{
-					HANDLE SubFile;
-
-					// override common.j
-
-					if( SFileOpenFileEx( MapMPQ, "Scripts\\common.j", 0, &SubFile ) )
-					{
-						uint32_t FileLength = SFileGetFileSize( SubFile, NULL );
-
-						if( FileLength > 0 && FileLength != 0xFFFFFFFF )
-						{
-							char *SubFileData = new char[FileLength];
-							DWORD BytesRead = 0;
-
-							if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
-							{
-								BOOST_LOG_TRIVIAL(info) << "[MAP] overriding default common.j with map copy while calculating map_crc/sha1";
-								OverrodeCommonJ = true;
-								Val = Val ^ XORRotateLeft( (unsigned char *)SubFileData, BytesRead );
-								m_GHost->m_SHA->Update( (unsigned char *)SubFileData, BytesRead );
-							}
-
-							delete [] SubFileData;
-						}
-
-						SFileCloseFile( SubFile );
-					}
-				}
-
-				if( !OverrodeCommonJ )
-				{
-					Val = Val ^ XORRotateLeft( (unsigned char *)CommonJ.c_str( ), CommonJ.size( ) );
-					m_GHost->m_SHA->Update( (unsigned char *)CommonJ.c_str( ), CommonJ.size( ) );
-				}
-
-				if( MapMPQReady )
-				{
-					HANDLE SubFile;
-
-					// override blizzard.j
-
-					if( SFileOpenFileEx( MapMPQ, "Scripts\\blizzard.j", 0, &SubFile ) )
-					{
-						uint32_t FileLength = SFileGetFileSize( SubFile, NULL );
-
-						if( FileLength > 0 && FileLength != 0xFFFFFFFF )
-						{
-							char *SubFileData = new char[FileLength];
-							DWORD BytesRead = 0;
-
-							if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
-							{
-								BOOST_LOG_TRIVIAL(info) << "[MAP] overriding default blizzard.j with map copy while calculating map_crc/sha1";
-								OverrodeBlizzardJ = true;
-								Val = Val ^ XORRotateLeft( (unsigned char *)SubFileData, BytesRead );
-								m_GHost->m_SHA->Update( (unsigned char *)SubFileData, BytesRead );
-							}
-
-							delete [] SubFileData;
-						}
-
-						SFileCloseFile( SubFile );
-					}
-				}
-
-				if( !OverrodeBlizzardJ )
-				{
-					Val = Val ^ XORRotateLeft( (unsigned char *)BlizzardJ.c_str( ), BlizzardJ.size( ) );
-					m_GHost->m_SHA->Update( (unsigned char *)BlizzardJ.c_str( ), BlizzardJ.size( ) );
-				}
-
-				Val = ROTL( Val, 3 );
-				Val = ROTL( Val ^ 0x03F1379E, 3 );
-				m_GHost->m_SHA->Update( (unsigned char *)"\x9E\x37\xF1\x03", 4 );
-
-				if( MapMPQReady )
-				{
-					vector<string> FileList;
-					FileList.push_back( "war3map.j" );
-					FileList.push_back( "scripts\\war3map.j" );
-					FileList.push_back( "war3map.w3e" );
-					FileList.push_back( "war3map.wpm" );
-					FileList.push_back( "war3map.doo" );
-					FileList.push_back( "war3map.w3u" );
-					FileList.push_back( "war3map.w3b" );
-					FileList.push_back( "war3map.w3d" );
-					FileList.push_back( "war3map.w3a" );
-					FileList.push_back( "war3map.w3q" );
-					bool FoundScript = false;
-
-					for( vector<string> :: iterator i = FileList.begin( ); i != FileList.end( ); ++i )
-					{
-						// don't use scripts\war3map.j if we've already used war3map.j (yes, some maps have both but only war3map.j is used)
-
-						if( FoundScript && *i == "scripts\\war3map.j" )
-							continue;
-
-						HANDLE SubFile;
-
-						if( SFileOpenFileEx( MapMPQ, (*i).c_str( ), 0, &SubFile ) )
-						{
-							uint32_t FileLength = SFileGetFileSize( SubFile, NULL );
-
-							if( FileLength > 0 && FileLength != 0xFFFFFFFF )
-							{
-								char *SubFileData = new char[FileLength];
-								DWORD BytesRead = 0;
-
-								if( SFileReadFile( SubFile, SubFileData, FileLength, &BytesRead, NULL ) )
-								{
-									if( *i == "war3map.j" || *i == "scripts\\war3map.j" )
-										FoundScript = true;
-
-									Val = ROTL( Val ^ XORRotateLeft( (unsigned char *)SubFileData, BytesRead ), 3 );
-									m_GHost->m_SHA->Update( (unsigned char *)SubFileData, BytesRead );
-									// DEBUG_Print( "*** found: " + *i );
-								}
-
-								delete [] SubFileData;
-							}
-
-							SFileCloseFile( SubFile );
-						}
-						else
-						{
-							// DEBUG_Print( "*** not found: " + *i );
-						}
-					}
-
-					if( !FoundScript )
-						BOOST_LOG_TRIVIAL(info) << "[MAP] couldn't find war3map.j or scripts\\war3map.j in MPQ file, calculated map_crc/sha1 is probably wrong";
-
-					MapCRC = UTIL_CreateByteArray( Val, false );
-					BOOST_LOG_TRIVIAL(info) << "[MAP] calculated map_crc = " + UTIL_ByteArrayToDecString( MapCRC );
-
-					m_GHost->m_SHA->Final( );
-					unsigned char SHA1[20];
-					memset( SHA1, 0, sizeof( unsigned char ) * 20 );
-					m_GHost->m_SHA->GetHash( SHA1 );
-					MapSHA1 = UTIL_CreateByteArray( SHA1, 20 );
-					BOOST_LOG_TRIVIAL(info) << "[MAP] calculated map_sha1 = " + UTIL_ByteArrayToDecString( MapSHA1 );
-				}
-				else
-					BOOST_LOG_TRIVIAL(warning) << "[MAP] unable to calculate map_crc/sha1 - map MPQ file not loaded";
+				BOOST_LOG_TRIVIAL(warning) << "[BNET: " + (*bnet)->GetServerAlias() + "][MAP] unable to calculate map_crc/sha1 - map MPQ file not loaded";
 			}
+
+			// save checksums
+			m_BnetMapCRC[(*bnet)->getServerIndex()] = MapCRC;
+			m_BnetMapSHA1[(*bnet)->getServerIndex()] = MapSHA1;
 		}
 	}
 	else
+	{
 		BOOST_LOG_TRIVIAL(info) << "[MAP] no map data available, using config file for map_size, map_info, map_crc, map_sha1";
+	}
 
 	// try to calculate map_width, map_height, map_slot<x>, map_numplayers, map_numteams
 
@@ -728,8 +748,6 @@ void CMap :: Load( CConfig *CFG, string nCFGFile )
 		MapCRC = UTIL_ExtractNumbers( CFG->GetString( "map_crc", string( ) ), 4 );
 	}
 
-	m_MapCRC = MapCRC;
-
 	if( MapSHA1.empty( ) )
 		MapSHA1 = UTIL_ExtractNumbers( CFG->GetString( "map_sha1", string( ) ), 20 );
 	else if( CFG->Exists( "map_sha1" ) )
@@ -738,7 +756,6 @@ void CMap :: Load( CConfig *CFG, string nCFGFile )
 		MapSHA1 = UTIL_ExtractNumbers( CFG->GetString( "map_sha1", string( ) ), 20 );
 	}
 
-	m_MapSHA1 = MapSHA1;
 	m_MapSpeed = CFG->GetInt( "map_speed", MAPSPEED_FAST );
 	m_MapVisibility = CFG->GetInt( "map_visibility", MAPVIS_DEFAULT );
 	m_MapObservers = CFG->GetInt( "map_observers", MAPOBS_NONE );
@@ -905,13 +922,14 @@ void CMap :: CheckValid( )
 		BOOST_LOG_TRIVIAL(warning) << "[MAP] invalid map_info detected";
 	}
 
-	if( m_MapCRC.size( ) != 4 )
+	// only validate map crc/sha for primary realm
+	if( m_BnetMapCRC[0].size( ) != 4 )
 	{
 		m_Valid = false;
 		BOOST_LOG_TRIVIAL(warning) << "[MAP] invalid map_crc detected";
 	}
 
-	if( m_MapSHA1.size( ) != 20 )
+	if( m_BnetMapSHA1[0].size( ) != 20 )
 	{
 		m_Valid = false;
 		BOOST_LOG_TRIVIAL(warning) << "[MAP] invalid map_sha1 detected";

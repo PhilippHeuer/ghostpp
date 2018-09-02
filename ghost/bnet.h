@@ -85,6 +85,7 @@ private:
 	vector<CDBBan *> m_Bans;						// vector of cached bans
 	boost::mutex m_BansMutex;						// synchronizes accesses and updates to the m_Bans vector
 	bool m_Exiting;									// set to true and this class will be deleted next update
+	uint16_t m_Index;								// index used to references this bnet connection
 	string m_Server;								// battle.net server to connect to
 	string m_ServerIP;								// battle.net server to connect to (the IP address so we don't have to resolve it every time we connect)
 	string m_ServerAlias;							// battle.net server alias (short name, e.g. "USEast")
@@ -129,10 +130,11 @@ private:
 	bool m_LastInviteCreation;						// whether the last invite received was for a clan creation (else, it was for invitation response)
 
 public:
-	CBNET( CGHost *nGHost, string nServer, string nServerAlias, string nBNLSServer, uint16_t nBNLSPort, uint32_t nBNLSWardenCookie, string nCDKeyROC, string nCDKeyTFT, string nCountryAbbrev, string nCountry, uint32_t nLocaleID, string nUserName, string nUserPassword, string nFirstChannel, string nRootAdmin, char nCommandTrigger, bool nHoldFriends, bool nHoldClan, bool nPublicCommands, unsigned char nWar3Version, string nWar3PathCustom, BYTEARRAY nEXEVersion, BYTEARRAY nEXEVersionHash, string nPasswordHashType, string nPVPGNRealmName, uint32_t nMaxMessageLength, uint32_t nHostCounterID );
+	CBNET( CGHost *nGHost, uint16_t nIndex, string nServer, string nServerAlias, string nBNLSServer, uint16_t nBNLSPort, uint32_t nBNLSWardenCookie, string nCDKeyROC, string nCDKeyTFT, string nCountryAbbrev, string nCountry, uint32_t nLocaleID, string nUserName, string nUserPassword, string nFirstChannel, string nRootAdmin, char nCommandTrigger, bool nHoldFriends, bool nHoldClan, bool nPublicCommands, unsigned char nWar3Version, string nWar3PathCustom, BYTEARRAY nEXEVersion, BYTEARRAY nEXEVersionHash, string nPasswordHashType, string nPVPGNRealmName, uint32_t nMaxMessageLength, uint32_t nHostCounterID );
 	~CBNET( );
 
 	bool GetExiting( )					{ return m_Exiting; }
+	uint16_t getServerIndex( )			{ return m_Index; }
 	string GetServer( )					{ return m_Server; }
 	string GetServerAlias( )			{ return m_ServerAlias; }
 	string GetCDKeyROC( )				{ return m_CDKeyROC; }
@@ -143,6 +145,8 @@ public:
 	string GetCurrentChannel( )			{ return m_CurrentChannel; }
 	string GetRootAdmin( )				{ return m_RootAdmin; }
 	char GetCommandTrigger( )			{ return m_CommandTrigger; }
+	unsigned char GetWar3Version( )		{ return m_War3Version; }
+	string GetWar3CustomPath( )			{ return m_War3PathCustom; }
 	BYTEARRAY GetEXEVersion( )			{ return m_EXEVersion; }
 	BYTEARRAY GetEXEVersionHash( )		{ return m_EXEVersionHash; }
 	string GetPasswordHashType( )		{ return m_PasswordHashType; }

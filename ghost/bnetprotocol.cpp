@@ -629,7 +629,7 @@ BYTEARRAY CBNETProtocol :: SEND_SID_CHECKAD( )
 	return packet;
 }
 
-BYTEARRAY CBNETProtocol :: SEND_SID_STARTADVEX3( unsigned char state, BYTEARRAY mapGameType, BYTEARRAY mapFlags, BYTEARRAY mapWidth, BYTEARRAY mapHeight, string gameName, string hostName, uint32_t upTime, string mapPath, BYTEARRAY mapCRC, BYTEARRAY mapSHA1, uint32_t hostCounter )
+BYTEARRAY CBNETProtocol :: SEND_SID_STARTADVEX3( unsigned char state, BYTEARRAY mapGameType, BYTEARRAY mapFlags, BYTEARRAY mapWidth, BYTEARRAY mapHeight, string gameName, string hostName, uint32_t upTime, string mapPath, BYTEARRAY mapCRC, BYTEARRAY mapSHA1, uint16_t war3version, uint32_t mapNumPlayers, uint32_t hostCounter )
 {
 	// todotodo: sort out how GameType works, the documentation is horrendous
 
@@ -701,10 +701,20 @@ Flags:
 		UTIL_AppendByteArray( packet, CustomGame, 4 );					// Custom Game
 		UTIL_AppendByteArrayFast( packet, gameName );					// Game Name
 		packet.push_back( 0 );											// Game Password is NULL
-		if( MAX_SLOTS > 12 ) 
-			packet.push_back( 110 );										// Slots Free (ascii 98 = char 'b' = 11 slots free) - note: do not reduce this as this is the # of PID's Warcraft III will allocate
+		if( war3version >= 29 && mapNumPlayers > 12 )
+		{
+			packet.push_back( 110 );									// Slots Free (ascii 98 = char 'b' = 11 slots free) - note: do not reduce this as this is the # of PID's Warcraft III will allocate
+		}
+		else if( war3version < 29 && mapNumPlayers > 12 )
+		{
+			BOOST_LOG_TRIVIAL(warning) << "can't announce 24 player map on a realm that doesn't run patch 1.29 or newer!";
+			BYTEARRAY emptyPacket;
+			return emptyPacket;
+		}
 		else
+		{
 			packet.push_back( 98 );
+		}
 		UTIL_AppendByteArrayFast( packet, HostCounterString, false );	// Host Counter
 		UTIL_AppendByteArrayFast( packet, StatString );					// Stat String
 		packet.push_back( 0 );											// Stat String null terminator (the stat string is encoded to remove all even numbers i.e. zeros)

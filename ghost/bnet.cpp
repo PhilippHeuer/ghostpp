@@ -46,11 +46,12 @@ using namespace boost :: filesystem;
 // CBNET
 //
 
-CBNET :: CBNET( CGHost *nGHost, string nServer, string nServerAlias, string nBNLSServer, uint16_t nBNLSPort, uint32_t nBNLSWardenCookie, string nCDKeyROC, string nCDKeyTFT, string nCountryAbbrev, string nCountry, uint32_t nLocaleID, string nUserName, string nUserPassword, string nFirstChannel, string nRootAdmin, char nCommandTrigger, bool nHoldFriends, bool nHoldClan, bool nPublicCommands, unsigned char nWar3Version, string nWar3PathCustom, BYTEARRAY nEXEVersion, BYTEARRAY nEXEVersionHash, string nPasswordHashType, string nPVPGNRealmName, uint32_t nMaxMessageLength, uint32_t nHostCounterID )
+CBNET :: CBNET( CGHost *nGHost, uint16_t nIndex, string nServer, string nServerAlias, string nBNLSServer, uint16_t nBNLSPort, uint32_t nBNLSWardenCookie, string nCDKeyROC, string nCDKeyTFT, string nCountryAbbrev, string nCountry, uint32_t nLocaleID, string nUserName, string nUserPassword, string nFirstChannel, string nRootAdmin, char nCommandTrigger, bool nHoldFriends, bool nHoldClan, bool nPublicCommands, unsigned char nWar3Version, string nWar3PathCustom, BYTEARRAY nEXEVersion, BYTEARRAY nEXEVersionHash, string nPasswordHashType, string nPVPGNRealmName, uint32_t nMaxMessageLength, uint32_t nHostCounterID )
 {
 	// todotodo: append path seperator to Warcraft3Path if needed
 
 	m_GHost = nGHost;
+	m_Index = nIndex;
 	m_Socket = new CTCPClient( );
 	m_Protocol = new CBNETProtocol( );
 	m_BNLSClient = NULL;
@@ -813,7 +814,7 @@ void CBNET :: ProcessPackets( )
 						string customPath = m_GHost->m_Warcraft3Path;
 						if ( !m_War3PathCustom.empty( ) )
 						{
-							customPath = m_GHost->m_Warcraft3Path + m_War3PathCustom;
+							customPath = m_War3PathCustom;
 						}
 
 						// auto discovery
@@ -2170,6 +2171,8 @@ void CBNET :: QueueGameRefresh( unsigned char state, string gameName, string hos
 
 		uint32_t FixedHostCounter = ( hostCounter & 0x0FFFFFFF ) | ( m_HostCounterID << 28 );
 
+		BOOST_LOG_TRIVIAL(trace) << "[BNET: " + m_ServerAlias + "] - sending package SID_STARTADVEX3 [CRC: " + UTIL_ByteArrayToDecString(map->GetMapCRC(m_Index)) + "][SHA1: " + UTIL_ByteArrayToDecString(map->GetMapSHA1(m_Index)) + "][Size: W" + UTIL_ByteArrayToDecString(map->GetMapWidth()) + "/H " + UTIL_ByteArrayToDecString(map->GetMapHeight()) + "][Path: " + map->GetMapPath() + "][Uptime: " + UTIL_ToString(upTime) + "]";
+
 		if( saveGame )
 		{
 			uint32_t MapGameType = MAPGAMETYPE_SAVEDGAME;
@@ -2191,9 +2194,9 @@ void CBNET :: QueueGameRefresh( unsigned char state, string gameName, string hos
 			boost::mutex::scoped_lock packetsLock( m_PacketsMutex );
 			
 			if( m_GHost->m_Reconnect )
-				m_OutPackets.push( m_Protocol->SEND_SID_STARTADVEX3( state, UTIL_CreateByteArray( MapGameType, false ), map->GetMapGameFlags( ), MapWidth, MapHeight, gameName, hostName, upTime, "Save\\Multiplayer\\" + saveGame->GetFileNameNoPath( ), saveGame->GetMagicNumber( ), map->GetMapSHA1( ), FixedHostCounter ) );
+				m_OutPackets.push( m_Protocol->SEND_SID_STARTADVEX3( state, UTIL_CreateByteArray( MapGameType, false ), map->GetMapGameFlags( ), MapWidth, MapHeight, gameName, hostName, upTime, "Save\\Multiplayer\\" + saveGame->GetFileNameNoPath( ), saveGame->GetMagicNumber( ), map->GetMapSHA1( m_Index ), m_War3Version, map->GetMapNumPlayers(), FixedHostCounter ) );
 			else
-				m_OutPackets.push( m_Protocol->SEND_SID_STARTADVEX3( state, UTIL_CreateByteArray( MapGameType, false ), map->GetMapGameFlags( ), UTIL_CreateByteArray( (uint16_t)0, false ), UTIL_CreateByteArray( (uint16_t)0, false ), gameName, hostName, upTime, "Save\\Multiplayer\\" + saveGame->GetFileNameNoPath( ), saveGame->GetMagicNumber( ), map->GetMapSHA1( ), FixedHostCounter ) );
+				m_OutPackets.push( m_Protocol->SEND_SID_STARTADVEX3( state, UTIL_CreateByteArray( MapGameType, false ), map->GetMapGameFlags( ), UTIL_CreateByteArray( (uint16_t)0, false ), UTIL_CreateByteArray( (uint16_t)0, false ), gameName, hostName, upTime, "Save\\Multiplayer\\" + saveGame->GetFileNameNoPath( ), saveGame->GetMagicNumber( ), map->GetMapSHA1( m_Index ), m_War3Version, map->GetMapNumPlayers(), FixedHostCounter ) );
 			
 			packetsLock.unlock( );
 		}
@@ -2219,9 +2222,9 @@ void CBNET :: QueueGameRefresh( unsigned char state, string gameName, string hos
 			boost::mutex::scoped_lock packetsLock( m_PacketsMutex );
 			
 			if( m_GHost->m_Reconnect )
-				m_OutPackets.push( m_Protocol->SEND_SID_STARTADVEX3( state, UTIL_CreateByteArray( MapGameType, false ), map->GetMapGameFlags( ), MapWidth, MapHeight, gameName, hostName, upTime, map->GetMapPath( ), map->GetMapCRC( ), map->GetMapSHA1( ), FixedHostCounter ) );
+				m_OutPackets.push( m_Protocol->SEND_SID_STARTADVEX3( state, UTIL_CreateByteArray( MapGameType, false ), map->GetMapGameFlags( ), MapWidth, MapHeight, gameName, hostName, upTime, map->GetMapPath( ), map->GetMapCRC( m_Index ), map->GetMapSHA1( m_Index ), m_War3Version, map->GetMapNumPlayers(), FixedHostCounter ) );
 			else
-				m_OutPackets.push( m_Protocol->SEND_SID_STARTADVEX3( state, UTIL_CreateByteArray( MapGameType, false ), map->GetMapGameFlags( ), map->GetMapWidth( ), map->GetMapHeight( ), gameName, hostName, upTime, map->GetMapPath( ), map->GetMapCRC( ), map->GetMapSHA1( ), FixedHostCounter ) );
+				m_OutPackets.push( m_Protocol->SEND_SID_STARTADVEX3( state, UTIL_CreateByteArray( MapGameType, false ), map->GetMapGameFlags( ), map->GetMapWidth( ), map->GetMapHeight( ), gameName, hostName, upTime, map->GetMapPath( ), map->GetMapCRC( m_Index ), map->GetMapSHA1( m_Index ), m_War3Version, map->GetMapNumPlayers(), FixedHostCounter ) );
 			
 			packetsLock.unlock( );
 		}

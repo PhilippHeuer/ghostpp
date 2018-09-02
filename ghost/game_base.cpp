@@ -501,7 +501,7 @@ bool CBaseGame :: Update( void *fd, void *send_fd )
 				// note: we do not use m_Map->GetMapGameType because none of the filters are set when broadcasting to LAN (also as you might expect)
 
 				uint32_t MapGameType = MAPGAMETYPE_UNKNOWN0;
-				m_GHost->m_UDPSocket->Broadcast( 6112, m_Protocol->SEND_W3GS_GAMEINFO( m_GHost->m_TFT, m_GHost->m_LANWar3Version, UTIL_CreateByteArray( MapGameType, false ), m_Map->GetMapGameFlags( ), m_Map->GetMapWidth( ), m_Map->GetMapHeight( ), m_GameName, "Varlock", GetTime( ) - m_CreationTime, m_Map->GetMapPath( ), m_Map->GetMapCRC( ), MAX_SLOTS, MAX_SLOTS, m_HostPort, FixedHostCounter, m_EntryKey ) );
+				m_GHost->m_UDPSocket->Broadcast( 6112, m_Protocol->SEND_W3GS_GAMEINFO( m_GHost->m_TFT, m_GHost->m_LANWar3Version, UTIL_CreateByteArray( MapGameType, false ), m_Map->GetMapGameFlags( ), m_Map->GetMapWidth( ), m_Map->GetMapHeight( ), m_GameName, "Varlock", GetTime( ) - m_CreationTime, m_Map->GetMapPath( ), m_Map->GetMapCRC( 0 ), MAX_SLOTS, MAX_SLOTS, m_HostPort, FixedHostCounter, m_EntryKey ) );
 			}
 		}
 
@@ -2050,12 +2050,32 @@ void CBaseGame :: EventPlayerJoined( CPotentialPlayer *potential, CIncomingJoinP
 	if( GetNumPlayers( ) >= MAX_SLOTS-1 || EnforcePID == m_VirtualHostPID )
 		DeleteVirtualHost( );
 
+	// identify realm index
+	uint16_t serverIndex = 65535;
+	string serverAlias;
+	for( vector<CBNET *> :: iterator i = m_GHost->m_BNETs.begin( ); i != m_GHost->m_BNETs.end( ); ++i )
+	{
+		if( (*i)->GetServer( ) == JoinedRealm )
+		{
+			serverIndex = (*i)->getServerIndex( );
+			serverAlias = (*i)->GetServerAlias( );
+		}
+	}
+	if ( serverIndex == 65535 )
+	{
+		BOOST_LOG_TRIVIAL(error) << "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] is trying to join but we can't identify the realm he is joining from!";
+		potential->Send( m_Protocol->SEND_W3GS_REJECTJOIN( REJECTJOIN_FULL ) );
+		potential->SetDeleteMe( true );
+		return;
+	}
+	BOOST_LOG_TRIVIAL(debug) << "[GAME: " + m_GameName + "] trying to detect which realm [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] joined on - [" + JoinedRealm + "] serverIndex [" + UTIL_ToString(serverIndex) + "] serverAlias [" + serverAlias + "] joined the game";
+
 	// turning the CPotentialPlayer into a CGamePlayer is a bit of a pain because we have to be careful not to close the socket
 	// this problem is solved by setting the socket to NULL before deletion and handling the NULL case in the destructor
 	// we also have to be careful to not modify the m_Potentials vector since we're currently looping through it
 
-	BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] joined the game";
-	CGamePlayer *Player = new CGamePlayer( potential, m_SaveGame ? EnforcePID : GetNewPID( ), JoinedRealm, joinPlayer->GetName( ), joinPlayer->GetInternalIP( ), Reserved );
+	BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] joined the game from realm [" + serverAlias + "]";
+	CGamePlayer *Player = new CGamePlayer( potential, m_SaveGame ? EnforcePID : GetNewPID( ), serverAlias, serverIndex, joinPlayer->GetName( ), joinPlayer->GetInternalIP( ), Reserved );
 
 	// consider LAN players to have already spoof checked since they can't
 	// since so many people have trouble with this feature we now use the JoinedRealm to determine LAN status
@@ -2145,7 +2165,7 @@ void CBaseGame :: EventPlayerJoined( CPotentialPlayer *potential, CIncomingJoinP
 
 	// send a map check packet to the new player
 
-	Player->Send( m_Protocol->SEND_W3GS_MAPCHECK( m_Map->GetMapPath( ), m_Map->GetMapSize( ), m_Map->GetMapInfo( ), m_Map->GetMapCRC( ), m_Map->GetMapSHA1( ) ) );
+	Player->Send( m_Protocol->SEND_W3GS_MAPCHECK( m_Map->GetMapPath( ), m_Map->GetMapSize( ), m_Map->GetMapInfo( ), m_Map->GetMapCRC( Player->GetRealmIndex( ) ), m_Map->GetMapSHA1( Player->GetRealmIndex( ) ) ) );
 
 	// send slot info to everyone, so the new player gets this info twice but everyone else still needs to know the new slot layout
 
@@ -2452,13 +2472,18 @@ void CBaseGame :: EventPlayerJoinedWithScore( CPotentialPlayer *potential, CInco
 
 	uint32_t HostCounterID = joinPlayer->GetHostCounter( ) >> 28;
 	string JoinedRealm;
+	string serverAlias;
+	uint16_t serverIndex = 0;
 
 	// we use an ID value of 0 to denote joining via LAN
 
 	for( vector<CBNET *> :: iterator i = m_GHost->m_BNETs.begin( ); i != m_GHost->m_BNETs.end( ); ++i )
 	{
-		if( (*i)->GetHostCounterID( ) == HostCounterID )
+		if( (*i)->GetHostCounterID( ) == HostCounterID ) {
 			JoinedRealm = (*i)->GetServer( );
+			serverAlias = (*i)->GetServerAlias( );
+			serverIndex = distance(m_GHost->m_BNETs.begin( ), i);
+		}
 	}
 
 	if( JoinedRealm.empty( ) )
@@ -2478,13 +2503,14 @@ void CBaseGame :: EventPlayerJoinedWithScore( CPotentialPlayer *potential, CInco
 			return;
 		}
 	}
+	BOOST_LOG_TRIVIAL(debug) << "[GAME: " + m_GameName + "] trying to detect which realm [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] joined on - [" + serverAlias + "] serverIndex [" + UTIL_ToString(serverIndex) + "] serverAlias [" + serverAlias + "] joined the game";
 
 	// turning the CPotentialPlayer into a CGamePlayer is a bit of a pain because we have to be careful not to close the socket
 	// this problem is solved by setting the socket to NULL before deletion and handling the NULL case in the destructor
 	// we also have to be careful to not modify the m_Potentials vector since we're currently looping through it
 
-	BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] joined the game";
-	CGamePlayer *Player = new CGamePlayer( potential, GetNewPID( ), JoinedRealm, joinPlayer->GetName( ), joinPlayer->GetInternalIP( ), false );
+	BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] joined the game from realm [" + serverAlias + "]";
+	CGamePlayer *Player = new CGamePlayer( potential, GetNewPID( ), serverAlias, serverIndex, joinPlayer->GetName( ), joinPlayer->GetInternalIP( ), false );
 
 	// consider LAN players to have already spoof checked since they can't
 	// since so many people have trouble with this feature we now use the JoinedRealm to determine LAN status
@@ -2540,7 +2566,7 @@ void CBaseGame :: EventPlayerJoinedWithScore( CPotentialPlayer *potential, CInco
 
 	// send a map check packet to the new player
 
-	Player->Send( m_Protocol->SEND_W3GS_MAPCHECK( m_Map->GetMapPath( ), m_Map->GetMapSize( ), m_Map->GetMapInfo( ), m_Map->GetMapCRC( ), m_Map->GetMapSHA1( ) ) );
+	Player->Send( m_Protocol->SEND_W3GS_MAPCHECK( m_Map->GetMapPath( ), m_Map->GetMapSize( ), m_Map->GetMapInfo( ), m_Map->GetMapCRC( Player->GetRealmIndex( ) ), m_Map->GetMapSHA1( Player->GetRealmIndex( ) ) ) );
 
 	// send slot info to everyone, so the new player gets this info twice but everyone else still needs to know the new slot layout
 
@@ -3473,11 +3499,11 @@ void CBaseGame :: EventGameStarted( )
 	StatString.push_back( 0 );
 	UTIL_AppendByteArray( StatString, m_Map->GetMapWidth( ) );
 	UTIL_AppendByteArray( StatString, m_Map->GetMapHeight( ) );
-	UTIL_AppendByteArray( StatString, m_Map->GetMapCRC( ) );
+	UTIL_AppendByteArray( StatString, m_Map->GetMapCRC( 0 ) );
 	UTIL_AppendByteArray( StatString, m_Map->GetMapPath( ) );
 	UTIL_AppendByteArray( StatString, "GHost++" );
 	StatString.push_back( 0 );
-	UTIL_AppendByteArray( StatString, m_Map->GetMapSHA1( ) );		// note: in replays generated by Warcraft III it stores 20 zeros for the SHA1 instead of the real thing
+	UTIL_AppendByteArray( StatString, m_Map->GetMapSHA1( 0 ) );		// note: in replays generated by Warcraft III it stores 20 zeros for the SHA1 instead of the real thing
 	StatString = UTIL_EncodeStatString( StatString );
 	m_StatString = string( StatString.begin( ), StatString.end( ) );
 
