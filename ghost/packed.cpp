@@ -80,7 +80,7 @@ CPacked :: ~CPacked( )
 void CPacked :: Load( string fileName, bool allBlocks )
 {
 	m_Valid = true;
-	CONSOLE_Print( "[PACKED] loading data from file [" + fileName + "]" );
+	BOOST_LOG_TRIVIAL(info) << "[PACKED] loading data from file [" + fileName + "]";
 	m_Compressed = UTIL_FileRead( fileName );
 	Decompress( allBlocks );
 }
@@ -91,7 +91,7 @@ bool CPacked :: Save( bool TFT, string fileName )
 
 	if( m_Valid )
 	{
-		CONSOLE_Print( "[PACKED] saving data to file [" + fileName + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[PACKED] saving data to file [" + fileName + "]";
 		return UTIL_FileWrite( fileName, (unsigned char *)m_Compressed.c_str( ), m_Compressed.size( ) );
 	}
 	else
@@ -101,7 +101,7 @@ bool CPacked :: Save( bool TFT, string fileName )
 bool CPacked :: Extract( string inFileName, string outFileName )
 {
 	m_Valid = true;
-	CONSOLE_Print( "[PACKED] extracting data from file [" + inFileName + "] to file [" + outFileName + "]" );
+	BOOST_LOG_TRIVIAL(info) << "[PACKED] extracting data from file [" + inFileName + "] to file [" + outFileName + "]";
 	m_Compressed = UTIL_FileRead( inFileName );
 	Decompress( true );
 
@@ -114,7 +114,7 @@ bool CPacked :: Extract( string inFileName, string outFileName )
 bool CPacked :: Pack( bool TFT, string inFileName, string outFileName )
 {
 	m_Valid = true;
-	CONSOLE_Print( "[PACKET] packing data from file [" + inFileName + "] to file [" + outFileName + "]" );
+	BOOST_LOG_TRIVIAL(info) << "[PACKET] packing data from file [" + inFileName + "] to file [" + outFileName + "]";
 	m_Decompressed = UTIL_FileRead( inFileName );
 	Compress( TFT );
 
@@ -126,7 +126,7 @@ bool CPacked :: Pack( bool TFT, string inFileName, string outFileName )
 
 void CPacked :: Decompress( bool allBlocks )
 {
-	CONSOLE_Print( "[PACKED] decompressing data" );
+	BOOST_LOG_TRIVIAL(info) << "[PACKED] decompressing data";
 
 	// format found at http://www.thehelper.net/forums/showthread.php?t=42787
 
@@ -140,7 +140,7 @@ void CPacked :: Decompress( bool allBlocks )
 
 	if( GarbageString != "Warcraft III recorded game\x01A" )
 	{
-		CONSOLE_Print( "[PACKED] not a valid packed file" );
+		BOOST_LOG_TRIVIAL(error) << "[PACKED] not a valid packed file";
 		m_Valid = false;
 		return;
 	}
@@ -156,7 +156,7 @@ void CPacked :: Decompress( bool allBlocks )
 		ISS.seekg( 2, ios :: cur );					// unknown
 		ISS.seekg( 2, ios :: cur );					// version number
 
-		CONSOLE_Print( "[PACKED] header version is too old" );
+		BOOST_LOG_TRIVIAL(error) << "[PACKED] header version is too old";
 		m_Valid = false;
 		return;
 	}
@@ -173,15 +173,15 @@ void CPacked :: Decompress( bool allBlocks )
 
 	if( ISS.fail( ) )
 	{
-		CONSOLE_Print( "[PACKED] failed to read header" );
+		BOOST_LOG_TRIVIAL(error) << "[PACKED] failed to read header";
 		m_Valid = false;
 		return;
 	}
 
 	if( allBlocks )
-		CONSOLE_Print( "[PACKED] reading " + UTIL_ToString( m_NumBlocks ) + " blocks" );
+		BOOST_LOG_TRIVIAL(debug) << "[PACKED] reading " + UTIL_ToString( m_NumBlocks ) + " blocks";
 	else
-		CONSOLE_Print( "[PACKED] reading 1/" + UTIL_ToString( m_NumBlocks ) + " blocks" );
+		BOOST_LOG_TRIVIAL(debug) << "[PACKED] reading 1/" + UTIL_ToString( m_NumBlocks ) + " blocks";
 
 	// read blocks
 
@@ -198,7 +198,7 @@ void CPacked :: Decompress( bool allBlocks )
 
 		if( ISS.fail( ) )
 		{
-			CONSOLE_Print( "[PACKED] failed to read block header" );
+			BOOST_LOG_TRIVIAL(error) << "[PACKED] failed to read block header";
 			m_Valid = false;
 			return;
 		}
@@ -213,7 +213,7 @@ void CPacked :: Decompress( bool allBlocks )
 
 		if( ISS.fail( ) )
 		{
-			CONSOLE_Print( "[PACKED] failed to read block data" );
+			BOOST_LOG_TRIVIAL(error) << "[PACKED] failed to read block data";
 			delete [] DecompressedData;
 			delete [] CompressedData;
 			m_Valid = false;
@@ -226,7 +226,7 @@ void CPacked :: Decompress( bool allBlocks )
 
 		if( Result != Z_OK )
 		{
-			CONSOLE_Print( "[PACKED] tzuncompress error " + UTIL_ToString( Result ) );
+			BOOST_LOG_TRIVIAL(error) << "[PACKED] tzuncompress error " + UTIL_ToString( Result );
 			delete [] DecompressedData;
 			delete [] CompressedData;
 			m_Valid = false;
@@ -235,7 +235,7 @@ void CPacked :: Decompress( bool allBlocks )
 
 		if( BlockDecompressedLong != (uLongf)BlockDecompressed )
 		{
-			CONSOLE_Print( "[PACKED] block decompressed size mismatch, actual = " + UTIL_ToString( BlockDecompressedLong ) + ", expected = " + UTIL_ToString( BlockDecompressed ) );
+			BOOST_LOG_TRIVIAL(error) << "[PACKED] block decompressed size mismatch, actual = " + UTIL_ToString( BlockDecompressedLong ) + ", expected = " + UTIL_ToString( BlockDecompressed );
 			delete [] DecompressedData;
 			delete [] CompressedData;
 			m_Valid = false;
@@ -252,27 +252,27 @@ void CPacked :: Decompress( bool allBlocks )
 			break;
 	}
 
-	CONSOLE_Print( "[PACKED] decompressed " + UTIL_ToString( m_Decompressed.size( ) ) + " bytes" );
+	BOOST_LOG_TRIVIAL(error) << "[PACKED] decompressed " + UTIL_ToString( m_Decompressed.size( ) ) + " bytes";
 
 	if( allBlocks || m_NumBlocks == 1 )
 	{
 		if( m_DecompressedSize > m_Decompressed.size( ) )
 		{
-			CONSOLE_Print( "[PACKED] not enough decompressed data" );
+			BOOST_LOG_TRIVIAL(info) << "[PACKED] not enough decompressed data";
 			m_Valid = false;
 			return;
 		}
 
 		// the last block is padded with zeros, discard them
 
-		CONSOLE_Print( "[PACKED] discarding " + UTIL_ToString( m_Decompressed.size( ) - m_DecompressedSize ) + " bytes" );
+		BOOST_LOG_TRIVIAL(warning) << "[PACKED] discarding " + UTIL_ToString( m_Decompressed.size( ) - m_DecompressedSize ) + " bytes";
 		m_Decompressed.erase( m_DecompressedSize );
 	}
 }
 
 void CPacked :: Compress( bool TFT )
 {
-	CONSOLE_Print( "[PACKED] compressing data" );
+	BOOST_LOG_TRIVIAL(info) << "[PACKED] compressing data";
 
 	// format found at http://www.thehelper.net/forums/showthread.php?t=42787
 
@@ -295,7 +295,7 @@ void CPacked :: Compress( bool TFT )
 
 		if( Result != Z_OK )
 		{
-			CONSOLE_Print( "[PACKED] compress error " + UTIL_ToString( Result ) );
+			BOOST_LOG_TRIVIAL(error) << "[PACKED] compress error " + UTIL_ToString( Result );
 			delete [] CompressedData;
 			m_Valid = false;
 			return;

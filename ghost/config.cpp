@@ -44,10 +44,10 @@ void CConfig :: Read( string file )
 	in.open( file.c_str( ) );
 
 	if( in.fail( ) )
-		CONSOLE_Print( "[CONFIG] warning - unable to read file [" + file + "]" );
+		BOOST_LOG_TRIVIAL(warning) << "unable to read file [" + file + "]";
 	else
 	{
-		CONSOLE_Print( "[CONFIG] loading file [" + file + "]" );
+		BOOST_LOG_TRIVIAL(info) << "loading config file [" + file + "]";
 		string Line;
 
 		while( !in.eof( ) )

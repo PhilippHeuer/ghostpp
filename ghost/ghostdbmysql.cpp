@@ -54,12 +54,12 @@ CGHostDBMySQL :: CGHostDBMySQL( CConfig *CFG ) : CGHostDB( CFG )
 
 	// create the first connection
 
-	CONSOLE_Print( "[MYSQL] connecting to database server" );
+	BOOST_LOG_TRIVIAL(info) << "[MYSQL] connecting to database server";
 	MYSQL *Connection = NULL;
 
 	if( !( Connection = mysql_init( NULL ) ) )
 	{
-		CONSOLE_Print( string( "[MYSQL] " ) + mysql_error( Connection ) );
+		BOOST_LOG_TRIVIAL(info) << string( "[MYSQL] " ) + mysql_error( Connection );
 		m_HasError = true;
 		m_Error = "error initializing MySQL connection";
 		return;
@@ -70,7 +70,7 @@ CGHostDBMySQL :: CGHostDBMySQL( CConfig *CFG ) : CGHostDB( CFG )
 
 	if( !( mysql_real_connect( Connection, m_Server.c_str( ), m_User.c_str( ), m_Password.c_str( ), m_Database.c_str( ), m_Port, NULL, 0 ) ) )
 	{
-		CONSOLE_Print( string( "[MYSQL] " ) + mysql_error( Connection ) );
+		BOOST_LOG_TRIVIAL(info) << string( "[MYSQL] " ) + mysql_error( Connection );
 		m_HasError = true;
 		m_Error = "error connecting to MySQL server";
 		return;
@@ -82,7 +82,7 @@ CGHostDBMySQL :: CGHostDBMySQL( CConfig *CFG ) : CGHostDB( CFG )
 CGHostDBMySQL :: ~CGHostDBMySQL( )
 {
 	boost::mutex::scoped_lock lock(m_DatabaseMutex);
-	CONSOLE_Print( "[MYSQL] closing " + UTIL_ToString( m_IdleConnections.size( ) ) + "/" + UTIL_ToString( m_NumConnections ) + " idle MySQL connections" );
+	BOOST_LOG_TRIVIAL(info) << "[MYSQL] closing " + UTIL_ToString( m_IdleConnections.size( ) ) + "/" + UTIL_ToString( m_NumConnections ) + " idle MySQL connections";
 
 	while( !m_IdleConnections.empty( ) )
 	{
@@ -91,7 +91,7 @@ CGHostDBMySQL :: ~CGHostDBMySQL( )
 	}
 
 	if( m_OutstandingCallables > 0 )
-		CONSOLE_Print( "[MYSQL] " + UTIL_ToString( m_OutstandingCallables ) + " outstanding callables were never recovered" );
+		BOOST_LOG_TRIVIAL(info) << "[MYSQL] " + UTIL_ToString( m_OutstandingCallables ) + " outstanding callables were never recovered";
 
 	mysql_library_end( );
 }
@@ -117,15 +117,15 @@ void CGHostDBMySQL :: RecoverCallable( CBaseCallable *callable )
 			m_IdleConnections.push( MySQLCallable->GetConnection( ) );
 
 		if( m_OutstandingCallables == 0 )
-			CONSOLE_Print( "[MYSQL] recovered a mysql callable with zero outstanding" );
+			BOOST_LOG_TRIVIAL(info) << "[MYSQL] recovered a mysql callable with zero outstanding";
 		else
 			--m_OutstandingCallables;
 
 		if( !MySQLCallable->GetError( ).empty( ) )
-			CONSOLE_Print( "[MYSQL] error --- " + MySQLCallable->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[MYSQL] error --- " + MySQLCallable->GetError( );
 	}
 	else
-		CONSOLE_Print( "[MYSQL] tried to recover a non-mysql callable" );
+		BOOST_LOG_TRIVIAL(info) << "[MYSQL] tried to recover a non-mysql callable";
 }
 
 void CGHostDBMySQL :: CreateThread( CBaseCallable *callable )
@@ -136,7 +136,7 @@ void CGHostDBMySQL :: CreateThread( CBaseCallable *callable )
 	}
 	catch( boost :: thread_resource_error tre )
 	{
-		CONSOLE_Print( "[MYSQL] error spawning thread on attempt #1 [" + string( tre.what( ) ) + "], pausing execution and trying again in 50ms" );
+		BOOST_LOG_TRIVIAL(warning) << "[MYSQL] error spawning thread on attempt #1 [" + string( tre.what( ) ) + "], pausing execution and trying again in 50ms";
 		MILLISLEEP( 50 );
 
 		try
@@ -145,7 +145,7 @@ void CGHostDBMySQL :: CreateThread( CBaseCallable *callable )
 		}
 		catch( boost :: thread_resource_error tre2 )
 		{
-			CONSOLE_Print( "[MYSQL] error spawning thread on attempt #2 [" + string( tre2.what( ) ) + "], giving up" );
+			BOOST_LOG_TRIVIAL(warning) << "[MYSQL] error spawning thread on attempt #2 [" + string( tre2.what( ) ) + "], giving up";
 			callable->SetReady( true );
 		}
 	}

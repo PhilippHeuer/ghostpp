@@ -517,7 +517,8 @@ void CGamePlayer :: ProcessPackets( )
 				{
 					m_GProxy = true;
 					m_Socket->PutBytes( m_Game->m_GHost->m_GPSProtocol->SEND_GPSS_INIT( m_Game->m_GHost->m_ReconnectPort, m_PID, m_GProxyReconnectKey, m_Game->GetGProxyEmptyActions( ) ) );
-					CONSOLE_Print( "[GAME: " + m_Game->GetGameName( ) + "] player [" + m_Name + "] is using GProxy++" );
+					
+					BOOST_LOG_TRIVIAL(debug) << "Player [" + m_Name + "] is using GProxy++ in game [" + m_Game->GetGameName( ) + "]";
 				}
 				else
 				{

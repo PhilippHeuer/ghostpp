@@ -42,6 +42,19 @@
 #include <string>
 #include <vector>
 #include <boost/thread.hpp>
+#include <boost/algorithm/string/predicate.hpp>
+
+// boost log
+#define BOOST_LOG_DYN_LINK 1
+#include <boost/log/core.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/sinks/text_file_backend.hpp>
+#include <boost/log/sources/record_ostream.hpp>
+#include <boost/log/sources/severity_logger.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/log/utility/setup/console.hpp>
 
 using namespace std;
 
@@ -63,11 +76,5 @@ uint32_t GetTicks( );		// milliseconds
 
 #undef FD_SETSIZE
 #define FD_SETSIZE 512
-
-// output
-
-void CONSOLE_Print( string message );
-void DEBUG_Print( string message );
-void DEBUG_Print( BYTEARRAY b );
 
 #endif

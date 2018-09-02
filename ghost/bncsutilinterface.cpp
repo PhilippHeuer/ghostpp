@@ -48,43 +48,53 @@ void CBNCSUtilInterface :: Reset( string userName, string userPassword )
 	m_NLS = new NLS( userName, userPassword );
 }
 
-bool CBNCSUtilInterface :: HELP_SID_AUTH_CHECK( bool TFT, uint32_t war3Version, string war3Path, string keyROC, string keyTFT, string valueStringFormula, string mpqFileName, BYTEARRAY clientToken, BYTEARRAY serverToken )
+bool CBNCSUtilInterface :: HELP_SID_AUTH_CHECK( bool TFT, string keyROC, string keyTFT, BYTEARRAY clientToken, BYTEARRAY serverToken )
 {
-	// set m_EXEVersion, m_EXEVersionHash, m_EXEInfo, m_InfoROC, m_InfoTFT
+	m_KeyInfoROC = CreateKeyInfo( keyROC, UTIL_ByteArrayToUInt32( clientToken, false ), UTIL_ByteArrayToUInt32( serverToken, false ) );
 
-	string FileWar3EXE = war3Path + "Warcraft III.exe";
+	if( TFT )
+		m_KeyInfoTFT = CreateKeyInfo( keyTFT, UTIL_ByteArrayToUInt32( clientToken, false ), UTIL_ByteArrayToUInt32( serverToken, false ) );
 
-	if( !UTIL_FileExists( FileWar3EXE ) )
-		FileWar3EXE = war3Path + "warcraft.exe";
+	if( m_KeyInfoROC.size( ) == 36 && ( !TFT || m_KeyInfoTFT.size( ) == 36 ) )
+		return true;
+	else
+	{
+		if( m_KeyInfoROC.size( ) != 36 )
+			BOOST_LOG_TRIVIAL(fatal) << "[GHOST] unable to create ROC key info - invalid ROC key";
 
+		if( TFT && m_KeyInfoTFT.size( ) != 36 )
+			BOOST_LOG_TRIVIAL(fatal) << "[GHOST] unable to create TFT key info - invalid TFT key";
+	}
+
+	return false;
+}
+
+bool CBNCSUtilInterface :: AutoDiscoverExeInformation( uint32_t war3Version, string war3Path, string mpqFileName, string valueStringFormula )
+{
+	// set m_EXEVersion, m_EXEVersionHash, m_EXEInfo
 	bool MissingFile = false;
 
+	string FileWar3EXE = war3Path + "Warcraft III.exe";
 	if( !UTIL_FileExists( FileWar3EXE ) )
 	{
-		CONSOLE_Print( "[BNCSUI] unable to open [" + FileWar3EXE + "]" );
+		BOOST_LOG_TRIVIAL(error) << "[GHOST] unable to open [" + FileWar3EXE + "]";
 		MissingFile = true;
 	}
 
 	string FileStormDLL, FileGameDLL;
-
 	if( war3Version <= 28 )
 	{
 		FileStormDLL = war3Path + "Storm.dll";
-
-		if( !UTIL_FileExists( FileStormDLL ) )
-			FileStormDLL = war3Path + "storm.dll";
-
-		FileGameDLL = war3Path + "game.dll";
-
 		if( !UTIL_FileExists( FileStormDLL ) )
 		{
-			CONSOLE_Print( "[BNCSUI] unable to open [" + FileStormDLL + "]" );
+			BOOST_LOG_TRIVIAL(error) << "[GHOST] unable to open [" + FileStormDLL + "]";
 			MissingFile = true;
 		}
 
+		FileGameDLL = war3Path + "Game.dll";
 		if( !UTIL_FileExists( FileGameDLL ) )
 		{
-			CONSOLE_Print( "[BNCSUI] unable to open [" + FileGameDLL + "]" );
+			BOOST_LOG_TRIVIAL(error) << "[GHOST] unable to open [" + FileGameDLL + "]";
 			MissingFile = true;
 		}
 	}
@@ -102,7 +112,7 @@ bool CBNCSUtilInterface :: HELP_SID_AUTH_CHECK( bool TFT, uint32_t war3Version, 
 	unsigned long EXEVersionHash;
 
 	// for war3version <= 28, we use war3.exe, storm.dll, and game.dll
-	// for war3version == 29, we use Warcraft III.exe only
+	// for war3version >= 29, we use Warcraft III.exe only
 	if( war3Version <= 28 )
 	{
 		checkRevisionFlat( valueStringFormula.c_str( ), FileWar3EXE.c_str( ), FileStormDLL.c_str( ), FileGameDLL.c_str( ), extractMPQNumber( mpqFileName.c_str( ) ), (unsigned long *)&EXEVersionHash );
@@ -114,23 +124,8 @@ bool CBNCSUtilInterface :: HELP_SID_AUTH_CHECK( bool TFT, uint32_t war3Version, 
 	}
 
 	m_EXEVersionHash = UTIL_CreateByteArray( (uint32_t) EXEVersionHash, false );
-	m_KeyInfoROC = CreateKeyInfo( keyROC, UTIL_ByteArrayToUInt32( clientToken, false ), UTIL_ByteArrayToUInt32( serverToken, false ) );
 
-	if( TFT )
-		m_KeyInfoTFT = CreateKeyInfo( keyTFT, UTIL_ByteArrayToUInt32( clientToken, false ), UTIL_ByteArrayToUInt32( serverToken, false ) );
-
-	if( m_KeyInfoROC.size( ) == 36 && ( !TFT || m_KeyInfoTFT.size( ) == 36 ) )
-		return true;
-	else
-	{
-		if( m_KeyInfoROC.size( ) != 36 )
-			CONSOLE_Print( "[BNCSUI] unable to create ROC key info - invalid ROC key" );
-
-		if( TFT && m_KeyInfoTFT.size( ) != 36 )
-			CONSOLE_Print( "[BNCSUI] unable to create TFT key info - invalid TFT key" );
-	}
-
-	return false;
+	return true;
 }
 
 bool CBNCSUtilInterface :: HELP_SID_AUTH_ACCOUNTLOGON( )

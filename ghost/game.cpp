@@ -84,7 +84,7 @@ CGame :: ~CGame( )
 	{
 		if( m_CallableGameAdd->GetResult( ) > 0 )
 		{
-			CONSOLE_Print( "[GAME: " + m_GameName + "] saving player/stats data to database" );
+			BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] saving player/stats data to database";
 
 			// store the CDBGamePlayers in the database
 
@@ -97,7 +97,7 @@ CGame :: ~CGame( )
 				m_Stats->Save( m_GHost, m_GHost->m_DB, m_CallableGameAdd->GetResult( ) );
 		}
 		else
-			CONSOLE_Print( "[GAME: " + m_GameName + "] unable to save player/stats data to database" );
+			BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] unable to save player/stats data to database";
 
 		m_GHost->m_DB->RecoverCallable( m_CallableGameAdd );
 		delete m_CallableGameAdd;
@@ -135,7 +135,7 @@ CGame :: ~CGame( )
 
 	if( m_CallableGameAdd )
 	{
-		CONSOLE_Print( "[GAME: " + m_GameName + "] game is being deleted before all game data was saved, game data has been lost" );
+		BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] game is being deleted before all game data was saved, game data has been lost";
 		boost::mutex::scoped_lock lock( m_GHost->m_CallablesMutex );
 		m_GHost->m_Callables.push_back( m_CallableGameAdd );
 		lock.unlock( );
@@ -336,7 +336,7 @@ bool CGame :: EventPlayerAction( CGamePlayer *player, CIncomingAction *action )
 
 	if( success && m_Stats && m_Stats->ProcessAction( action ) && m_GameOverTime == 0 )
 	{
-		CONSOLE_Print( "[GAME: " + m_GameName + "] gameover timer started (stats class reported game over)" );
+		BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] gameover timer started (stats class reported game over)";
 		SendEndMessage( );
 		m_GameOverTime = GetTime( );
 	}
@@ -378,7 +378,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 
 	if( player->GetSpoofed( ) && ( AdminCheck || RootAdminCheck || IsOwner( User ) ) )
 	{
-		CONSOLE_Print( "[GAME: " + m_GameName + "] admin [" + User + "] sent command [" + Command + "] with payload [" + Payload + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] admin [" + User + "] sent command [" + Command + "] with payload [" + Payload + "]";
 
 		if( !m_Locked || RootAdminCheck || IsOwner( User ) )
 		{
@@ -498,11 +498,11 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 					SS >> Interval;
 
 					if( SS.fail( ) || Interval == 0 )
-						CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #1 to announce command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #1 to announce command";
 					else
 					{
 						if( SS.eof( ) )
-							CONSOLE_Print( "[GAME: " + m_GameName + "] missing input #2 to announce command" );
+							BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] missing input #2 to announce command";
 						else
 						{
 							getline( SS, Message );
@@ -650,7 +650,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 
 					if( SS.fail( ) )
 					{
-						CONSOLE_Print( "[GAME: " + m_GameName + "] bad input to close command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input to close command";
 						break;
 					}
 					else
@@ -681,14 +681,14 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				SS >> Slot;
 
 				if( SS.fail( ) )
-					CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #1 to comp command" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #1 to comp command";
 				else
 				{
 					if( !SS.eof( ) )
 						SS >> Skill;
 
 					if( SS.fail( ) )
-						CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #2 to comp command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #2 to comp command";
 					else
 						ComputerSlot( (unsigned char)( Slot - 1 ), (unsigned char)Skill, true );
 				}
@@ -710,17 +710,17 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				SS >> Slot;
 
 				if( SS.fail( ) )
-					CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #1 to compcolour command" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #1 to compcolour command";
 				else
 				{
 					if( SS.eof( ) )
-						CONSOLE_Print( "[GAME: " + m_GameName + "] missing input #2 to compcolour command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] missing input #2 to compcolour command";
 					else
 					{
 						SS >> Colour;
 
 						if( SS.fail( ) )
-							CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #2 to compcolour command" );
+							BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #2 to compcolour command";
 						else
 						{
 							unsigned char SID = (unsigned char)( Slot - 1 );
@@ -751,17 +751,17 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				SS >> Slot;
 
 				if( SS.fail( ) )
-					CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #1 to comphandicap command" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #1 to comphandicap command";
 				else
 				{
 					if( SS.eof( ) )
-						CONSOLE_Print( "[GAME: " + m_GameName + "] missing input #2 to comphandicap command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] missing input #2 to comphandicap command";
 					else
 					{
 						SS >> Handicap;
 
 						if( SS.fail( ) )
-							CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #2 to comphandicap command" );
+							BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #2 to comphandicap command";
 						else
 						{
 							unsigned char SID = (unsigned char)( Slot - 1 );
@@ -795,11 +795,11 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				SS >> Slot;
 
 				if( SS.fail( ) )
-					CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #1 to comprace command" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #1 to comprace command";
 				else
 				{
 					if( SS.eof( ) )
-						CONSOLE_Print( "[GAME: " + m_GameName + "] missing input #2 to comprace command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] missing input #2 to comprace command";
 					else
 					{
 						getline( SS, Race );
@@ -841,7 +841,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 									SendAllSlotInfo( );
 								}
 								else
-									CONSOLE_Print( "[GAME: " + m_GameName + "] unknown race [" + Race + "] sent to comprace command" );
+									BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] unknown race [" + Race + "] sent to comprace command";
 							}
 						}
 					}
@@ -864,17 +864,17 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				SS >> Slot;
 
 				if( SS.fail( ) )
-					CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #1 to compteam command" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #1 to compteam command";
 				else
 				{
 					if( SS.eof( ) )
-						CONSOLE_Print( "[GAME: " + m_GameName + "] missing input #2 to compteam command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] missing input #2 to compteam command";
 					else
 					{
 						SS >> Team;
 
 						if( SS.fail( ) )
-							CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #2 to compteam command" );
+							BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #2 to compteam command";
 						else
 						{
 							unsigned char SID = (unsigned char)( Slot - 1 );
@@ -921,7 +921,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 						{
 							// inform the client that we are willing to send the map
 
-							CONSOLE_Print( "[GAME: " + m_GameName + "] map download started for player [" + LastMatch->GetName( ) + "]" );
+							BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] map download started for player [" + LastMatch->GetName( ) + "]";
 							Send( LastMatch, m_Protocol->SEND_W3GS_STARTDOWNLOAD( GetHostPID( ) ) );
 							LastMatch->SetDownloadAllowed( true );
 							LastMatch->SetDownloadStarted( true );
@@ -946,7 +946,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 
 			else if( Command == "end" && m_GameLoaded )
 			{
-				CONSOLE_Print( "[GAME: " + m_GameName + "] is over (admin ended game)" );
+				BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] is over (admin ended game)";
 				StopPlayers( "was disconnected (admin ended game)" );
 			}
 
@@ -1064,7 +1064,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 
 					if( SS.fail( ) )
 					{
-						CONSOLE_Print( "[GAME: " + m_GameName + "] bad input to hold command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input to hold command";
 						break;
 					}
 					else
@@ -1188,7 +1188,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 
 					if( SS.fail( ) )
 					{
-						CONSOLE_Print( "[GAME: " + m_GameName + "] bad input to open command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input to open command";
 						break;
 					}
 					else
@@ -1297,7 +1297,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 			{
 				if( Payload.length() < 31 )
 				{
-					CONSOLE_Print( "[GAME: " + m_GameName + "] trying to rehost as private game [" + Payload + "]" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] trying to rehost as private game [" + Payload + "]";
 					SendAllChat( m_GHost->m_Language->TryingToRehostAsPrivateGame( Payload ) );
 					m_GameState = GAME_PRIVATE;
 					m_LastGameName = m_GameName;
@@ -1339,7 +1339,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 			{
 				if( Payload.length() < 31 )
 				{
-					CONSOLE_Print( "[GAME: " + m_GameName + "] trying to rehost as public game [" + Payload + "]" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] trying to rehost as public game [" + Payload + "]";
 					SendAllChat( m_GHost->m_Language->TryingToRehostAsPublicGame( Payload ) );
 					m_GameState = GAME_PUBLIC;
 					m_LastGameName = m_GameName;
@@ -1416,7 +1416,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 					SS >> Port;
 
 				if( SS.fail( ) )
-					CONSOLE_Print( "[GAME: " + m_GameName + "] bad inputs to sendlan command" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad inputs to sendlan command";
 				else
 				{
 					// construct a fixed host counter which will be used to identify players from this "realm" (i.e. LAN)
@@ -1526,17 +1526,17 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				SS >> SID1;
 
 				if( SS.fail( ) )
-					CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #1 to swap command" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #1 to swap command";
 				else
 				{
 					if( SS.eof( ) )
-						CONSOLE_Print( "[GAME: " + m_GameName + "] missing input #2 to swap command" );
+						BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] missing input #2 to swap command";
 					else
 					{
 						SS >> SID2;
 
 						if( SS.fail( ) )
-							CONSOLE_Print( "[GAME: " + m_GameName + "] bad input #2 to swap command" );
+							BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] bad input #2 to swap command";
 						else
 							SwapSlots( (unsigned char)( SID1 - 1 ), (unsigned char)( SID2 - 1 ) );
 					}
@@ -1665,16 +1665,16 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 		}
 		else
 		{
-			CONSOLE_Print( "[GAME: " + m_GameName + "] admin command ignored, the game is locked" );
+			BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] admin command ignored, the game is locked";
 			SendChat( player, m_GHost->m_Language->TheGameIsLocked( ) );
 		}
 	}
 	else
 	{
 		if( !player->GetSpoofed( ) )
-			CONSOLE_Print( "[GAME: " + m_GameName + "] non-spoofchecked user [" + User + "] sent command [" + Command + "] with payload [" + Payload + "]" );
+			BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] non-spoofchecked user [" + User + "] sent command [" + Command + "] with payload [" + Payload + "]";
 		else
-			CONSOLE_Print( "[GAME: " + m_GameName + "] non-admin [" + User + "] sent command [" + Command + "] with payload [" + Payload + "]" );
+			BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] non-admin [" + User + "] sent command [" + Command + "] with payload [" + Payload + "]";
 	}
 
 	/*********************
@@ -1769,7 +1769,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 						(*i)->SetKickVote( false );
 
 					player->SetKickVote( true );
-					CONSOLE_Print( "[GAME: " + m_GameName + "] votekick against player [" + m_KickVotePlayer + "] started by player [" + User + "]" );
+					BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] votekick against player [" + m_KickVotePlayer + "] started by player [" + User + "]";
 					SendAllChat( m_GHost->m_Language->StartedVoteKick( LastMatch->GetName( ), User, UTIL_ToString( (uint32_t)ceil( ( GetNumHumanPlayers( ) - 1 ) * (float)m_GHost->m_VoteKickPercentage / 100 ) - 1 ) ) );
 					SendAllChat( m_GHost->m_Language->TypeYesToVote( string( 1, m_GHost->m_CommandTrigger ) ) );
 				}
@@ -1812,7 +1812,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				if( !m_GameLoading && !m_GameLoaded )
 					OpenSlot( GetSIDFromPID( Victim->GetPID( ) ), false );
 
-				CONSOLE_Print( "[GAME: " + m_GameName + "] votekick against player [" + m_KickVotePlayer + "] passed with " + UTIL_ToString( Votes ) + "/" + UTIL_ToString( GetNumHumanPlayers( ) ) + " votes" );
+				BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] votekick against player [" + m_KickVotePlayer + "] passed with " + UTIL_ToString( Votes ) + "/" + UTIL_ToString( GetNumHumanPlayers( ) ) + " votes";
 				SendAllChat( m_GHost->m_Language->VoteKickPassed( m_KickVotePlayer ) );
 			}
 			else
@@ -1851,7 +1851,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				if( m_FakePlayerPID != 255 ) {
 					DeleteFakePlayer( );
 				}
-				CONSOLE_Print( "[GAME: " + m_GameName + "] votestart started by player [" + User + "]" );
+				BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] votestart started by player [" + User + "]";
 			}
 
 			// set voted-state to true for player
@@ -1902,6 +1902,6 @@ bool CGame :: IsGameDataSaved( )
 
 void CGame :: SaveGameData( )
 {
-	CONSOLE_Print( "[GAME: " + m_GameName + "] saving game data to database" );
+	BOOST_LOG_TRIVIAL(info) << "[GAME: " + m_GameName + "] saving game data to database";
 	m_CallableGameAdd = m_GHost->m_DB->ThreadedGameAdd( m_GHost->m_BNETs.size( ) == 1 ? m_GHost->m_BNETs[0]->GetServer( ) : string( ), m_DBGame->GetMap( ), m_GameName, m_OwnerName, m_GameTicks / 1000, m_GameState, m_CreatorName, m_CreatorServer );
 }

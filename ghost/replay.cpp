@@ -138,7 +138,7 @@ void CReplay :: BuildReplay( string gameName, string statString, uint32_t war3Ve
 	m_BuildNumber = buildNumber;
 	m_Flags = 32768;
 
-	CONSOLE_Print( "[REPLAY] building replay" );
+	BOOST_LOG_TRIVIAL(info) << "[REPLAY] building replay";
 
 	uint32_t LanguageID = 0x0012F8B0;
 
@@ -233,7 +233,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( m_Flags != 32768 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (flags mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (flags mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -249,7 +249,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage4 != 272 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (4.0 Unknown mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.0 Unknown mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -258,7 +258,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage1 != 0 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (4.1 Host RecordID mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.1 Host RecordID mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -267,7 +267,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( m_HostPID > 15 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (4.1 Host PlayerID is invalid)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.1 Host PlayerID is invalid)";
 		m_Valid = false;
 		return;
 	}
@@ -277,7 +277,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage1 != 1 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (4.1 Host AdditionalSize mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.1 Host AdditionalSize mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -286,7 +286,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage1 != 0 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (4.1 Host AdditionalData mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.1 Host AdditionalData mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -299,7 +299,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( m_PlayerCount > MAX_SLOTS )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (4.6 PlayerCount is invalid)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.6 PlayerCount is invalid)";
 		m_Valid = false;
 		return;
 	}
@@ -319,7 +319,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 			if( PlayerID > 15 )
 			{
-				CONSOLE_Print( "[REPLAY] invalid replay (4.9 Player PlayerID is invalid)" );
+				BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.9 Player PlayerID is invalid)";
 				m_Valid = false;
 				return;
 			}
@@ -329,7 +329,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 			if( Garbage1 != 1 )
 			{
-				CONSOLE_Print( "[REPLAY] invalid replay (4.9 Player AdditionalSize mismatch)" );
+				BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.9 Player AdditionalSize mismatch)";
 				m_Valid = false;
 				return;
 			}
@@ -338,7 +338,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 			if( Garbage1 != 0 )
 			{
-				CONSOLE_Print( "[REPLAY] invalid replay (4.9 Player AdditionalData mismatch)" );
+				BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.9 Player AdditionalData mismatch)";
 				m_Valid = false;
 				return;
 			}
@@ -347,7 +347,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 			if( Garbage4 != 0 )
 			{
-				CONSOLE_Print( "[REPLAY] invalid replay (4.9 Unknown mismatch)" );
+				BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.9 Unknown mismatch)";
 				m_Valid = false;
 				return;
 			}
@@ -358,7 +358,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 			break;
 		else
 		{
-			CONSOLE_Print( "[REPLAY] invalid replay (4.9 Player RecordID mismatch)" );
+			BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.9 Player RecordID mismatch)";
 			m_Valid = false;
 			return;
 		}
@@ -371,14 +371,14 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Size != 7 + NumSlots * 9 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (4.10 Size is invalid)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.10 Size is invalid)";
 		m_Valid = false;
 		return;
 	}
 
 	if( NumSlots == 0 || NumSlots > MAX_SLOTS )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (4.10 NumSlots is invalid)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (4.10 NumSlots is invalid)";
 		m_Valid = false;
 		return;
 	}
@@ -397,7 +397,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( ISS.eof( ) || ISS.fail( ) )
 	{
-		CONSOLE_Print( "[SAVEGAME] failed to parse replay header" );
+		BOOST_LOG_TRIVIAL(error) << "[SAVEGAME] failed to parse replay header";
 		m_Valid = false;
 		return;
 	}
@@ -409,7 +409,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage1 != CReplay :: REPLAY_FIRSTSTARTBLOCK )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (5.0 first start block ID mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 first start block ID mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -418,7 +418,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage4 != 1 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (5.0 first start block data mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 first start block data mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -427,7 +427,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage1 != CReplay :: REPLAY_SECONDSTARTBLOCK )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (5.0 second start block ID mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 second start block ID mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -436,7 +436,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage4 != 1 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (5.0 second start block data mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 second start block data mismatch)";
 		m_Valid = false;
 		return;
 	}
@@ -447,7 +447,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 		if( ISS.eof( ) || ISS.fail( ) )
 		{
-			CONSOLE_Print( "[REPLAY] invalid replay (5.0 third start block unexpected end of file found)" );
+			BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 third start block unexpected end of file found)";
 			m_Valid = false;
 			return;
 		}
@@ -463,7 +463,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 			break;
 		else
 		{
-			CONSOLE_Print( "[REPLAY] invalid replay (5.0 third start block ID mismatch)" );
+			BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 third start block ID mismatch)";
 			m_Valid = false;
 			return;
 		}
@@ -473,14 +473,14 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 	if( Garbage4 != 1 )
 	{
-		CONSOLE_Print( "[REPLAY] invalid replay (5.0 third start block data mismatch)" );
+		BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 third start block data mismatch)";
 		m_Valid = false;
 		return;
 	}
 
 	if( ISS.eof( ) || ISS.fail( ) )
 	{
-		CONSOLE_Print( "[SAVEGAME] failed to parse replay start blocks" );
+		BOOST_LOG_TRIVIAL(error) << "[SAVEGAME] failed to parse replay start blocks";
 		m_Valid = false;
 		return;
 	}
@@ -529,7 +529,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 			if( PID > 15 )
 			{
-				CONSOLE_Print( "[REPLAY] invalid replay (5.0 chatmessage pid is invalid)" );
+				BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 chatmessage pid is invalid)";
 				m_Valid = false;
 				return;
 			}
@@ -552,7 +552,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 
 			if( Garbage1 != 4 )
 			{
-				CONSOLE_Print( "[REPLAY] invalid replay (5.0 checksum unknown mismatch)" );
+				BOOST_LOG_TRIVIAL(error) << "[REPLAY] invalid replay (5.0 checksum unknown mismatch)";
 				m_Valid = false;
 				return;
 			}
@@ -570,7 +570,7 @@ void CReplay :: ParseReplay( bool parseBlocks )
 	}
 
 	if( m_ReplayLength != ActualReplayLength )
-		CONSOLE_Print( "[REPLAY] warning - replay length mismatch (" + UTIL_ToString( m_ReplayLength ) + "ms/" + UTIL_ToString( ActualReplayLength ) + "ms)" );
+		BOOST_LOG_TRIVIAL(warning) << "[REPLAY] replay length mismatch (" + UTIL_ToString( m_ReplayLength ) + "ms/" + UTIL_ToString( ActualReplayLength ) + "ms)";
 
 	m_Valid = true;
 }

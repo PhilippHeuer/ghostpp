@@ -106,8 +106,8 @@ uint32_t CSQLITE3 :: LastRowID( )
 CGHostDBSQLite :: CGHostDBSQLite( CConfig *CFG ) : CGHostDB( CFG )
 {
 	m_File = CFG->GetString( "db_sqlite3_file", "ghost.dbs" );
-	CONSOLE_Print( "[SQLITE3] version " + string( SQLITE_VERSION ) );
-	CONSOLE_Print( "[SQLITE3] opening database [" + m_File + "]" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] version " + string( SQLITE_VERSION );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] opening database [" + m_File + "]";
 	m_DB = new CSQLITE3( m_File );
 
 	if( !m_DB->GetReady( ) )
@@ -115,7 +115,7 @@ CGHostDBSQLite :: CGHostDBSQLite( CConfig *CFG ) : CGHostDB( CFG )
 		// setting m_HasError to true indicates there's been a critical error and we want GHost to shutdown
 		// this is okay here because we're in the constructor so we're not dropping any games or players
 
-		CONSOLE_Print( string( "[SQLITE3] error opening database [" + m_File + "] - " ) + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(info) << string( "[SQLITE3] error opening database [" + m_File + "] - " ) + m_DB->GetError( );
 		m_HasError = true;
 		m_Error = "error opening database";
 		return;
@@ -138,15 +138,15 @@ CGHostDBSQLite :: CGHostDBSQLite( CConfig *CFG ) : CGHostDB( CFG )
 			if( Row->size( ) == 1 )
 				SchemaNumber = (*Row)[0];
 			else
-				CONSOLE_Print( "[SQLITE3] error getting schema number - row doesn't have 1 column" );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error getting schema number - row doesn't have 1 column";
 		}
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error getting schema number - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error getting schema number - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error getting schema number - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error getting schema number - " + m_DB->GetError( );
 
 	if( SchemaNumber.empty( ) )
 	{
@@ -155,7 +155,7 @@ CGHostDBSQLite :: CGHostDBSQLite( CConfig *CFG ) : CGHostDB( CFG )
 		// so we might actually be looking at schema version 1 rather than an empty database
 		// try to confirm this by looking for the admins table
 
-		CONSOLE_Print( "[SQLITE3] couldn't find schema number, looking for admins table" );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] couldn't find schema number, looking for admins table";
 		bool AdminTable = false;
 		m_DB->Prepare( "SELECT * FROM sqlite_master WHERE type=\"table\" AND name=\"admins\"", (void **)&Statement );
 
@@ -168,18 +168,18 @@ CGHostDBSQLite :: CGHostDBSQLite( CConfig *CFG ) : CGHostDB( CFG )
 			if( RC == SQLITE_ROW )
 				AdminTable = true;
 			else if( RC == SQLITE_ERROR )
-				CONSOLE_Print( "[SQLITE3] error looking for admins table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error looking for admins table - " + m_DB->GetError( );
 
 			m_DB->Finalize( Statement );
 		}
 		else
-			CONSOLE_Print( "[SQLITE3] prepare error looking for admins table - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error looking for admins table - " + m_DB->GetError( );
 
 		if( AdminTable )
 		{
 			// the admins table exists, assume we're looking at schema version 1
 
-			CONSOLE_Print( "[SQLITE3] found admins table, assuming schema number [1]" );
+			BOOST_LOG_TRIVIAL(info) << "[SQLITE3] found admins table, assuming schema number [1]";
 			SchemaNumber = "1";
 		}
 		else
@@ -187,29 +187,29 @@ CGHostDBSQLite :: CGHostDBSQLite( CConfig *CFG ) : CGHostDB( CFG )
 			// the admins table doesn't exist, assume the database is empty
 			// note to self: update the SchemaNumber and the database structure when making a new schema
 
-			CONSOLE_Print( "[SQLITE3] couldn't find admins table, assuming database is empty" );
+			BOOST_LOG_TRIVIAL(info) << "[SQLITE3] couldn't find admins table, assuming database is empty";
 			SchemaNumber = "8";
 
 			if( m_DB->Exec( "CREATE TABLE admins ( id INTEGER PRIMARY KEY, name TEXT NOT NULL, server TEXT NOT NULL DEFAULT \"\" )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating admins table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error creating admins table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE TABLE bans ( id INTEGER PRIMARY KEY, server TEXT NOT NULL, name TEXT NOT NULL, ip TEXT, date TEXT NOT NULL, gamename TEXT, admin TEXT NOT NULL, reason TEXT )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating bans table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error creating bans table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE TABLE games ( id INTEGER PRIMARY KEY, server TEXT NOT NULL, map TEXT NOT NULL, datetime TEXT NOT NULL, gamename TEXT NOT NULL, ownername TEXT NOT NULL, duration INTEGER NOT NULL, gamestate INTEGER NOT NULL DEFAULT 0, creatorname TEXT NOT NULL DEFAULT \"\", creatorserver TEXT NOT NULL DEFAULT \"\" )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating games table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error creating games table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE TABLE gameplayers ( id INTEGER PRIMARY KEY, gameid INTEGER NOT NULL, name TEXT NOT NULL, ip TEXT NOT NULL, spoofed INTEGER NOT NULL, reserved INTEGER NOT NULL, loadingtime INTEGER NOT NULL, left INTEGER NOT NULL, leftreason TEXT NOT NULL, team INTEGER NOT NULL, colour INTEGER NOT NULL, spoofedrealm TEXT NOT NULL DEFAULT \"\" )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating gameplayers table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error creating gameplayers table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE TABLE dotagames ( id INTEGER PRIMARY KEY, gameid INTEGER NOT NULL, winner INTEGER NOT NULL, min INTEGER NOT NULL DEFAULT 0, sec INTEGER NOT NULL DEFAULT 0 )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating dotagames table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error creating dotagames table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE TABLE dotaplayers ( id INTEGER PRIMARY KEY, gameid INTEGER NOT NULL, colour INTEGER NOT NULL, kills INTEGER NOT NULL, deaths INTEGER NOT NULL, creepkills INTEGER NOT NULL, creepdenies INTEGER NOT NULL, assists INTEGER NOT NULL, gold INTEGER NOT NULL, neutralkills INTEGER NOT NULL, item1 TEXT NOT NULL, item2 TEXT NOT NULL, item3 TEXT NOT NULL, item4 TEXT NOT NULL, item5 TEXT NOT NULL, item6 TEXT NOT NULL, hero TEXT NOT NULL DEFAULT \"\", newcolour NOT NULL DEFAULT 0, towerkills NOT NULL DEFAULT 0, raxkills NOT NULL DEFAULT 0, courierkills NOT NULL DEFAULT 0 )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating dotaplayers table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error creating dotaplayers table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE TABLE config ( name TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating config table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error creating config table - " + m_DB->GetError( );
 
 			m_DB->Prepare( "INSERT INTO config VALUES ( \"schema_number\", ? )", (void **)&Statement );
 
@@ -219,31 +219,31 @@ CGHostDBSQLite :: CGHostDBSQLite( CConfig *CFG ) : CGHostDB( CFG )
 				int RC = m_DB->Step( Statement );
 
 				if( RC == SQLITE_ERROR )
-					CONSOLE_Print( "[SQLITE3] error inserting schema number [" + SchemaNumber + "] - " + m_DB->GetError( ) );
+					BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error inserting schema number [" + SchemaNumber + "] - " + m_DB->GetError( );
 
 				m_DB->Finalize( Statement );
 			}
 			else
-				CONSOLE_Print( "[SQLITE3] prepare error inserting schema number [" + SchemaNumber + "] - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error inserting schema number [" + SchemaNumber + "] - " + m_DB->GetError( );
 
-			if( m_DB->Exec( "CREATE TABLE downloads ( id INTEGER PRIMARY KEY, map TEXT NOT NULL, mapsize INTEGER NOT NULL, datetime TEXT NOT NULL, name TEXT NOT NULL, ip TEXT NOT NULL, spoofed INTEGER NOT NULL, spoofedrealm TEXT NOT NULL, downloadtime INTEGER NOT NULL )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating downloads table - " + m_DB->GetError( ) );
+			if( m_DB->Exec( "CREATE warning downloads ( id INTEGER PRIMARY KEY, map TEXT NOT NULL, mapsize INTEGER NOT NULL, datetime TEXT NOT NULL, name TEXT NOT NULL, ip TEXT NOT NULL, spoofed INTEGER NOT NULL, spoofedrealm TEXT NOT NULL, downloadtime INTEGER NOT NULL )" ) != SQLITE_OK )
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating downloads table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE TABLE w3mmdplayers ( id INTEGER PRIMARY KEY, category TEXT NOT NULL, gameid INTEGER NOT NULL, pid INTEGER NOT NULL, name TEXT NOT NULL, flag TEXT NOT NULL, leaver INTEGER NOT NULL, practicing INTEGER NOT NULL )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating w3mmdplayers table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating w3mmdplayers table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE TABLE w3mmdvars ( id INTEGER PRIMARY KEY, gameid INTEGER NOT NULL, pid INTEGER NOT NULL, varname TEXT NOT NULL, value_int INTEGER DEFAULT NULL, value_real REAL DEFAULT NULL, value_string TEXT DEFAULT NULL )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating w3mmdvars table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating w3mmdvars table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE INDEX idx_gameid ON gameplayers ( gameid )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating idx_gameid index on gameplayers table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating idx_gameid index on gameplayers table - " + m_DB->GetError( );
 
 			if( m_DB->Exec( "CREATE INDEX idx_gameid_colour ON dotaplayers ( gameid, colour )" ) != SQLITE_OK )
-				CONSOLE_Print( "[SQLITE3] error creating idx_gameid_colour index on dotaplayers table - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating idx_gameid_colour index on dotaplayers table - " + m_DB->GetError( );
 		}
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] found schema number [" + SchemaNumber + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] found schema number [" + SchemaNumber + "]";
 
 	if( SchemaNumber == "1" )
 	{
@@ -288,7 +288,7 @@ CGHostDBSQLite :: CGHostDBSQLite( CConfig *CFG ) : CGHostDB( CFG )
 	}
 
 	if( m_DB->Exec( "CREATE TEMPORARY TABLE iptocountry ( ip1 INTEGER NOT NULL, ip2 INTEGER NOT NULL, country TEXT NOT NULL, PRIMARY KEY ( ip1, ip2 ) )" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error creating temporary iptocountry table - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating temporary iptocountry table - " + m_DB->GetError( );
 
 	FromAddStmt = NULL;
 }
@@ -298,42 +298,42 @@ CGHostDBSQLite :: ~CGHostDBSQLite( )
 	if( FromAddStmt )
 		m_DB->Finalize( FromAddStmt );
 
-	CONSOLE_Print( "[SQLITE3] closing database [" + m_File + "]" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] closing database [" + m_File + "]";
 	delete m_DB;
 }
 
 void CGHostDBSQLite :: Upgrade1_2( )
 {
-	CONSOLE_Print( "[SQLITE3] schema upgrade v1 to v2 started" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v1 to v2 started";
 
 	// add new column to table dotaplayers
 	//  + hero TEXT NOT NULL DEFAULT ""
 
 	if( m_DB->Exec( "ALTER TABLE dotaplayers ADD hero TEXT NOT NULL DEFAULT \"\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column hero to table dotaplayers - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error adding new column hero to table dotaplayers - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column hero to table dotaplayers" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column hero to table dotaplayers";
 
 	// add new columns to table dotagames
 	//  + min INTEGER NOT NULL DEFAULT 0
 	//  + sec INTEGER NOT NULL DEFAULT 0
 
 	if( m_DB->Exec( "ALTER TABLE dotagames ADD min INTEGER NOT NULL DEFAULT 0" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column min to table dotagames - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column min to table dotagames - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column min to table dotagames" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column min to table dotagames";
 
 	if( m_DB->Exec( "ALTER TABLE dotagames ADD sec INTEGER NOT NULL DEFAULT 0" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column sec to table dotagames - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column sec to table dotagames - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column sec to table dotagames" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column sec to table dotagames";
 
 	// add new table config
 
 	if( m_DB->Exec( "CREATE TABLE config ( name TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL )" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error creating config table - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] error creating config table - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] created config table" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] created config table";
 
 	sqlite3_stmt *Statement;
 	m_DB->Prepare( "INSERT INTO config VALUES ( \"schema_number\", \"2\" )", (void **)&Statement );
@@ -343,123 +343,123 @@ void CGHostDBSQLite :: Upgrade1_2( )
 		int RC = m_DB->Step( Statement );
 
 		if( RC == SQLITE_DONE )
-			CONSOLE_Print( "[SQLITE3] inserted schema number [2]" );
+			BOOST_LOG_TRIVIAL(info) << "[SQLITE3] inserted schema number [2]";
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error inserting schema number [2] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error inserting schema number [2] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error inserting schema number [2] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error inserting schema number [2] - " + m_DB->GetError( );
 
-	CONSOLE_Print( "[SQLITE3] schema upgrade v1 to v2 finished" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v1 to v2 finished";
 }
 
 void CGHostDBSQLite :: Upgrade2_3( )
 {
-	CONSOLE_Print( "[SQLITE3] schema upgrade v2 to v3 started" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v2 to v3 started";
 
 	// add new column to table admins
 	//  + server TEXT NOT NULL DEFAULT ""
 
 	if( m_DB->Exec( "ALTER TABLE admins ADD server TEXT NOT NULL DEFAULT \"\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column server to table admins - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column server to table admins - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column server to table admins" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column server to table admins";
 
 	// add new column to table games
 	//  + gamestate INTEGER NOT NULL DEFAULT 0
 
 	if( m_DB->Exec( "ALTER TABLE games ADD gamestate INTEGER NOT NULL DEFAULT 0" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column gamestate to table games - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column gamestate to table games - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column gamestate to table games" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column gamestate to table games";
 
 	// add new column to table gameplayers
 	//  + spoofedrealm TEXT NOT NULL DEFAULT ""
 
 	if( m_DB->Exec( "ALTER TABLE gameplayers ADD spoofedrealm TEXT NOT NULL DEFAULT \"\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column spoofedrealm to table gameplayers - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column spoofedrealm to table gameplayers - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column spoofedrealm to table gameplayers" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column spoofedrealm to table gameplayers";
 
 	// update schema number
 
 	if( m_DB->Exec( "UPDATE config SET value=\"3\" where name=\"schema_number\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error updating schema number [3] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error updating schema number [3] - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] updated schema number [3]" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] updated schema number [3]";
 
-	CONSOLE_Print( "[SQLITE3] schema upgrade v2 to v3 finished" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v2 to v3 finished";
 }
 
 void CGHostDBSQLite :: Upgrade3_4( )
 {
-	CONSOLE_Print( "[SQLITE3] schema upgrade v3 to v4 started" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v3 to v4 started";
 
 	// add new columns to table games
 	//  + creatorname TEXT NOT NULL DEFAULT ""
 	//  + creatorserver TEXT NOT NULL DEFAULT ""
 
 	if( m_DB->Exec( "ALTER TABLE games ADD creatorname TEXT NOT NULL DEFAULT \"\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column creatorname to table games - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column creatorname to table games - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column creatorname to table games" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column creatorname to table games";
 
 	if( m_DB->Exec( "ALTER TABLE games ADD creatorserver TEXT NOT NULL DEFAULT \"\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column creatorserver to table games - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column creatorserver to table games - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column creatorserver to table games" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column creatorserver to table games";
 
 	// add new table downloads
 
 	if( m_DB->Exec( "CREATE TABLE downloads ( id INTEGER PRIMARY KEY, map TEXT NOT NULL, mapsize INTEGER NOT NULL, datetime TEXT NOT NULL, name TEXT NOT NULL, ip TEXT NOT NULL, spoofed INTEGER NOT NULL, spoofedrealm TEXT NOT NULL, downloadtime INTEGER NOT NULL )" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error creating downloads table - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating downloads table - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] created downloads table" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] created downloads table";
 
 	// update schema number
 
 	if( m_DB->Exec( "UPDATE config SET value=\"4\" where name=\"schema_number\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error updating schema number [4] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error updating schema number [4] - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] updated schema number [4]" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] updated schema number [4]";
 
-	CONSOLE_Print( "[SQLITE3] schema upgrade v3 to v4 finished" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v3 to v4 finished";
 }
 
 void CGHostDBSQLite :: Upgrade4_5( )
 {
-	CONSOLE_Print( "[SQLITE3] schema upgrade v4 to v5 started" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v4 to v5 started";
 
 	// add new column to table dotaplayers
 	//  + newcolour NOT NULL DEFAULT 0
 
 	if( m_DB->Exec( "ALTER TABLE dotaplayers ADD newcolour NOT NULL DEFAULT 0" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column newcolour to table dotaplayers - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column newcolour to table dotaplayers - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column newcolour to table dotaplayers" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column newcolour to table dotaplayers";
 
 	// set newcolour = colour on all existing dotaplayers rows
 
 	if( m_DB->Exec( "UPDATE dotaplayers SET newcolour=colour WHERE newcolour=0" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error setting newcolour = colour on all existing dotaplayers rows - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error setting newcolour = colour on all existing dotaplayers rows - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] set newcolour = colour on all existing dotaplayers rows" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] set newcolour = colour on all existing dotaplayers rows";
 
 	// update schema number
 
 	if( m_DB->Exec( "UPDATE config SET value=\"5\" where name=\"schema_number\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error updating schema number [5] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error updating schema number [5] - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] updated schema number [5]" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] updated schema number [5]";
 
-	CONSOLE_Print( "[SQLITE3] schema upgrade v4 to v5 finished" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v4 to v5 finished";
 }
 
 void CGHostDBSQLite :: Upgrade5_6( )
 {
-	CONSOLE_Print( "[SQLITE3] schema upgrade v5 to v6 started" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v5 to v6 started";
 
 	// add new columns to table dotaplayers
 	//  + towerkills NOT NULL DEFAULT 0
@@ -467,82 +467,82 @@ void CGHostDBSQLite :: Upgrade5_6( )
 	//  + courierkills NOT NULL DEFAULT 0
 
 	if( m_DB->Exec( "ALTER TABLE dotaplayers ADD towerkills NOT NULL DEFAULT 0" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column towerkills to table dotaplayers - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column towerkills to table dotaplayers - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column towerkills to table dotaplayers" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column towerkills to table dotaplayers";
 
 	if( m_DB->Exec( "ALTER TABLE dotaplayers ADD raxkills NOT NULL DEFAULT 0" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column raxkills to table dotaplayers - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column raxkills to table dotaplayers - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column raxkills to table dotaplayers" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column raxkills to table dotaplayers";
 
 	if( m_DB->Exec( "ALTER TABLE dotaplayers ADD courierkills NOT NULL DEFAULT 0" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error adding new column courierkills to table dotaplayers - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding new column courierkills to table dotaplayers - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new column courierkills to table dotaplayers" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new column courierkills to table dotaplayers";
 
 	// update schema number
 
 	if( m_DB->Exec( "UPDATE config SET value=\"6\" where name=\"schema_number\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error updating schema number [6] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error updating schema number [6] - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] updated schema number [6]" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] updated schema number [6]";
 
-	CONSOLE_Print( "[SQLITE3] schema upgrade v5 to v6 finished" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v5 to v6 finished";
 }
 
 void CGHostDBSQLite :: Upgrade6_7( )
 {
-	CONSOLE_Print( "[SQLITE3] schema upgrade v6 to v7 started" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v6 to v7 started";
 
 	// add new index to table gameplayers
 
 	if( m_DB->Exec( "CREATE INDEX idx_gameid ON gameplayers ( gameid )" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error creating idx_gameid index on gameplayers table - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating idx_gameid index on gameplayers table - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new index idx_gameid to table gameplayers" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new index idx_gameid to table gameplayers";
 
 	// add new index to table dotaplayers
 
 	if( m_DB->Exec( "CREATE INDEX idx_gameid_colour ON dotaplayers ( gameid, colour )" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error creating idx_gameid_colour index on dotaplayers table - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating idx_gameid_colour index on dotaplayers table - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] added new index idx_gameid_colour to table dotaplayers" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] added new index idx_gameid_colour to table dotaplayers";
 
 	// update schema number
 
 	if( m_DB->Exec( "UPDATE config SET value=\"7\" where name=\"schema_number\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error updating schema number [7] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error updating schema number [7] - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] updated schema number [7]" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] updated schema number [7]";
 
-	CONSOLE_Print( "[SQLITE3] schema upgrade v6 to v7 finished" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v6 to v7 finished";
 }
 
 void CGHostDBSQLite :: Upgrade7_8( )
 {
-	CONSOLE_Print( "[SQLITE3] schema upgrade v7 to v8 started" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v7 to v8 started";
 
 	// create new tables
 
 	if( m_DB->Exec( "CREATE TABLE w3mmdplayers ( id INTEGER PRIMARY KEY, category TEXT NOT NULL, gameid INTEGER NOT NULL, pid INTEGER NOT NULL, name TEXT NOT NULL, flag TEXT NOT NULL, leaver INTEGER NOT NULL, practicing INTEGER NOT NULL )" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error creating w3mmdplayers table - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating w3mmdplayers table - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] created w3mmdplayers table" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] created w3mmdplayers table";
 
 	if( m_DB->Exec( "CREATE TABLE w3mmdvars ( id INTEGER PRIMARY KEY, gameid INTEGER NOT NULL, pid INTEGER NOT NULL, varname TEXT NOT NULL, value_int INTEGER DEFAULT NULL, value_real REAL DEFAULT NULL, value_string TEXT DEFAULT NULL )" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error creating w3mmdvars table - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error creating w3mmdvars table - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] created w3mmdvars table" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] created w3mmdvars table";
 
 	// update schema number
 
 	if( m_DB->Exec( "UPDATE config SET value=\"8\" where name=\"schema_number\"" ) != SQLITE_OK )
-		CONSOLE_Print( "[SQLITE3] error updating schema number [8] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error updating schema number [8] - " + m_DB->GetError( );
 	else
-		CONSOLE_Print( "[SQLITE3] updated schema number [8]" );
+		BOOST_LOG_TRIVIAL(info) << "[SQLITE3] updated schema number [8]";
 
-	CONSOLE_Print( "[SQLITE3] schema upgrade v7 to v8 finished" );
+	BOOST_LOG_TRIVIAL(info) << "[SQLITE3] schema upgrade v7 to v8 finished";
 }
 
 bool CGHostDBSQLite :: Begin( )
@@ -569,12 +569,12 @@ uint32_t CGHostDBSQLite :: AdminCount( string server )
 		if( RC == SQLITE_ROW )
 			Count = sqlite3_column_int( Statement, 0 );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error counting admins [" + server + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error counting admins [" + server + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error counting admins [" + server + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error counting admins [" + server + "] - " + m_DB->GetError( );
 
 	return Count;
 }
@@ -597,12 +597,12 @@ bool CGHostDBSQLite :: AdminCheck( string server, string user )
 		if( RC == SQLITE_ROW )
 			IsAdmin = true;
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error checking admin [" + server + " : " + user + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking admin [" + server + " : " + user + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error checking admin [" + server + " : " + user + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error checking admin [" + server + " : " + user + "] - " + m_DB->GetError( );
 
 	return IsAdmin;
 }
@@ -623,12 +623,12 @@ bool CGHostDBSQLite :: AdminAdd( string server, string user )
 		if( RC == SQLITE_DONE )
 			Success = true;
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding admin [" + server + " : " + user + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding admin [" + server + " : " + user + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding admin [" + server + " : " + user + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding admin [" + server + " : " + user + "] - " + m_DB->GetError( );
 
 	return Success;
 }
@@ -649,12 +649,12 @@ bool CGHostDBSQLite :: AdminRemove( string server, string user )
 		if( RC == SQLITE_DONE )
 			Success = true;
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error removing admin [" + server + " : " + user + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error removing admin [" + server + " : " + user + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error removing admin [" + server + " : " + user + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error removing admin [" + server + " : " + user + "] - " + m_DB->GetError( );
 
 	return Success;
 }
@@ -681,12 +681,12 @@ vector<string> CGHostDBSQLite :: AdminList( string server )
 		}
 
 		if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error retrieving admin list [" + server + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error retrieving admin list [" + server + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error retrieving admin list [" + server + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error retrieving admin list [" + server + "] - " + m_DB->GetError( );
 
 	return AdminList;
 }
@@ -705,12 +705,12 @@ uint32_t CGHostDBSQLite :: BanCount( string server )
 		if( RC == SQLITE_ROW )
 			Count = sqlite3_column_int( Statement, 0 );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error counting bans [" + server + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error counting bans [" + server + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error counting bans [" + server + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error counting bans [" + server + "] - " + m_DB->GetError( );
 
 	return Count;
 }
@@ -743,15 +743,15 @@ CDBBan *CGHostDBSQLite :: BanCheck( string server, string user, string ip )
 			if( Row->size( ) == 6 )
 				Ban = new CDBBan( server, (*Row)[0], (*Row)[1], (*Row)[2], (*Row)[3], (*Row)[4], (*Row)[5] );
 			else
-				CONSOLE_Print( "[SQLITE3] error checking ban [" + server + " : " + user + " : " + ip + "] - row doesn't have 6 columns" );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking ban [" + server + " : " + user + " : " + ip + "] - row doesn't have 6 columns";
 		}
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error checking ban [" + server + " : " + user + " : " + ip + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking ban [" + server + " : " + user + " : " + ip + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error checking ban [" + server + " : " + user + " : " + ip + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error checking ban [" + server + " : " + user + " : " + ip + "] - " + m_DB->GetError( );
 
 	return Ban;
 }
@@ -777,12 +777,12 @@ bool CGHostDBSQLite :: BanAdd( string server, string user, string ip, string gam
 		if( RC == SQLITE_DONE )
 			Success = true;
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding ban [" + server + " : " + user + " : " + ip + " : " + gamename + " : " + admin + " : " + reason + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding ban [" + server + " : " + user + " : " + ip + " : " + gamename + " : " + admin + " : " + reason + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding ban [" + server + " : " + user + " : " + ip + " : " + gamename + " : " + admin + " : " + reason + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding ban [" + server + " : " + user + " : " + ip + " : " + gamename + " : " + admin + " : " + reason + "] - " + m_DB->GetError( );
 
 	return Success;
 }
@@ -803,12 +803,12 @@ bool CGHostDBSQLite :: BanRemove( string server, string user )
 		if( RC == SQLITE_DONE )
 			Success = true;
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error removing ban [" + server + " : " + user + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error removing ban [" + server + " : " + user + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error removing ban [" + server + " : " + user + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error removing ban [" + server + " : " + user + "] - " + m_DB->GetError( );
 
 	return Success;
 }
@@ -828,12 +828,12 @@ bool CGHostDBSQLite :: BanRemove( string user )
 		if( RC == SQLITE_DONE )
 			Success = true;
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error removing ban [" + user + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error removing ban [" + user + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error removing ban [" + user + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error removing ban [" + user + "] - " + m_DB->GetError( );
 
 	return Success;
 }
@@ -860,12 +860,12 @@ vector<CDBBan *> CGHostDBSQLite :: BanList( string server )
 		}
 
 		if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error retrieving ban list [" + server + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error retrieving ban list [" + server + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error retrieving ban list [" + server + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error retrieving ban list [" + server + "] - " + m_DB->GetError( );
 
 	return BanList;
 }
@@ -892,12 +892,12 @@ uint32_t CGHostDBSQLite :: GameAdd( string server, string map, string gamename, 
 		if( RC == SQLITE_DONE )
 			RowID = m_DB->LastRowID( );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding game [" + server + " : " + map + " : " + gamename + " : " + ownername + " : " + UTIL_ToString( duration ) + " : " + UTIL_ToString( gamestate ) + " : " + creatorname + " : " + creatorserver + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding game [" + server + " : " + map + " : " + gamename + " : " + ownername + " : " + UTIL_ToString( duration ) + " : " + UTIL_ToString( gamestate ) + " : " + creatorname + " : " + creatorserver + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding game [" + server + " : " + map + " : " + gamename + " : " + ownername + " : " + UTIL_ToString( duration ) + " : " + UTIL_ToString( gamestate ) + " : " + creatorname + " : " + creatorserver + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding game [" + server + " : " + map + " : " + gamename + " : " + ownername + " : " + UTIL_ToString( duration ) + " : " + UTIL_ToString( gamestate ) + " : " + creatorname + " : " + creatorserver + "] - " + m_DB->GetError( );
 
 	return RowID;
 }
@@ -928,12 +928,12 @@ uint32_t CGHostDBSQLite :: GamePlayerAdd( uint32_t gameid, string name, string i
 		if( RC == SQLITE_DONE )
 			RowID = m_DB->LastRowID( );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding gameplayer [" + UTIL_ToString( gameid ) + " : " + name + " : " + ip + " : " + UTIL_ToString( spoofed ) + " : " + spoofedrealm + " : " + UTIL_ToString( reserved ) + " : " + UTIL_ToString( loadingtime ) + " : " + UTIL_ToString( left ) + " : " + leftreason + " : " + UTIL_ToString( team ) + " : " + UTIL_ToString( colour ) + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding gameplayer [" + UTIL_ToString( gameid ) + " : " + name + " : " + ip + " : " + UTIL_ToString( spoofed ) + " : " + spoofedrealm + " : " + UTIL_ToString( reserved ) + " : " + UTIL_ToString( loadingtime ) + " : " + UTIL_ToString( left ) + " : " + leftreason + " : " + UTIL_ToString( team ) + " : " + UTIL_ToString( colour ) + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding gameplayer [" + UTIL_ToString( gameid ) + " : " + name + " : " + ip + " : " + UTIL_ToString( spoofed ) + " : " + spoofedrealm + " : " + UTIL_ToString( reserved ) + " : " + UTIL_ToString( loadingtime ) + " : " + UTIL_ToString( left ) + " : " + leftreason + " : " + UTIL_ToString( team ) + " : " + UTIL_ToString( colour ) + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding gameplayer [" + UTIL_ToString( gameid ) + " : " + name + " : " + ip + " : " + UTIL_ToString( spoofed ) + " : " + spoofedrealm + " : " + UTIL_ToString( reserved ) + " : " + UTIL_ToString( loadingtime ) + " : " + UTIL_ToString( left ) + " : " + leftreason + " : " + UTIL_ToString( team ) + " : " + UTIL_ToString( colour ) + "] - " + m_DB->GetError( );
 
 	return RowID;
 }
@@ -953,12 +953,12 @@ uint32_t CGHostDBSQLite :: GamePlayerCount( string name )
 		if( RC == SQLITE_ROW )
 			Count = sqlite3_column_int( Statement, 0 );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error counting gameplayers [" + name + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error counting gameplayers [" + name + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error counting gameplayers [" + name + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error counting gameplayers [" + name + "] - " + m_DB->GetError( );
 
 	return Count;
 }
@@ -1006,15 +1006,15 @@ CDBGamePlayerSummary *CGHostDBSQLite :: GamePlayerSummaryCheck( string name )
 				GamePlayerSummary = new CDBGamePlayerSummary( string( ), name, FirstGameDateTime, LastGameDateTime, TotalGames, MinLoadingTime, AvgLoadingTime, MaxLoadingTime, MinLeftPercent, AvgLeftPercent, MaxLeftPercent, MinDuration, AvgDuration, MaxDuration );
 			}
 			else
-				CONSOLE_Print( "[SQLITE3] error checking gameplayersummary [" + name + "] - row doesn't have 12 columns" );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking gameplayersummary [" + name + "] - row doesn't have 12 columns";
 		}
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error checking gameplayersummary [" + name + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking gameplayersummary [" + name + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error checking gameplayersummary [" + name + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error checking gameplayersummary [" + name + "] - " + m_DB->GetError( );
 
 	return GamePlayerSummary;
 }
@@ -1037,12 +1037,12 @@ uint32_t CGHostDBSQLite :: DotAGameAdd( uint32_t gameid, uint32_t winner, uint32
 		if( RC == SQLITE_DONE )
 			RowID = m_DB->LastRowID( );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding dotagame [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( winner ) + " : " + UTIL_ToString( min ) + " : " + UTIL_ToString( sec ) + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding dotagame [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( winner ) + " : " + UTIL_ToString( min ) + " : " + UTIL_ToString( sec ) + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding dotagame [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( winner ) + " : " + UTIL_ToString( min ) + " : " + UTIL_ToString( sec ) + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding dotagame [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( winner ) + " : " + UTIL_ToString( min ) + " : " + UTIL_ToString( sec ) + "] - " + m_DB->GetError( );
 
 	return RowID;
 }
@@ -1081,12 +1081,12 @@ uint32_t CGHostDBSQLite :: DotAPlayerAdd( uint32_t gameid, uint32_t colour, uint
 		if( RC == SQLITE_DONE )
 			RowID = m_DB->LastRowID( );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding dotaplayer [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( colour ) + " : " + UTIL_ToString( kills ) + " : " + UTIL_ToString( deaths ) + " : " + UTIL_ToString( creepkills ) + " : " + UTIL_ToString( creepdenies ) + " : " + UTIL_ToString( assists ) + " : " + UTIL_ToString( gold ) + " : " + UTIL_ToString( neutralkills ) + " : " + item1 + " : " + item2 + " : " + item3 + " : " + item4 + " : " + item5 + " : " + item6 + " : " + hero + " : " + UTIL_ToString( newcolour ) + " : " + UTIL_ToString( towerkills ) + " : " + UTIL_ToString( raxkills ) + " : " + UTIL_ToString( courierkills ) + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding dotaplayer [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( colour ) + " : " + UTIL_ToString( kills ) + " : " + UTIL_ToString( deaths ) + " : " + UTIL_ToString( creepkills ) + " : " + UTIL_ToString( creepdenies ) + " : " + UTIL_ToString( assists ) + " : " + UTIL_ToString( gold ) + " : " + UTIL_ToString( neutralkills ) + " : " + item1 + " : " + item2 + " : " + item3 + " : " + item4 + " : " + item5 + " : " + item6 + " : " + hero + " : " + UTIL_ToString( newcolour ) + " : " + UTIL_ToString( towerkills ) + " : " + UTIL_ToString( raxkills ) + " : " + UTIL_ToString( courierkills ) + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding dotaplayer [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( colour ) + " : " + UTIL_ToString( kills ) + " : " + UTIL_ToString( deaths ) + " : " + UTIL_ToString( creepkills ) + " : " + UTIL_ToString( creepdenies ) + " : " + UTIL_ToString( assists ) + " : " + UTIL_ToString( gold ) + " : " + UTIL_ToString( neutralkills ) + " : " + item1 + " : " + item2 + " : " + item3 + " : " + item4 + " : " + item5 + " : " + item6 + " : " + hero + " : " + UTIL_ToString( newcolour ) + " : " + UTIL_ToString( towerkills ) + " : " + UTIL_ToString( raxkills ) + " : " + UTIL_ToString( courierkills ) + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding dotaplayer [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( colour ) + " : " + UTIL_ToString( kills ) + " : " + UTIL_ToString( deaths ) + " : " + UTIL_ToString( creepkills ) + " : " + UTIL_ToString( creepdenies ) + " : " + UTIL_ToString( assists ) + " : " + UTIL_ToString( gold ) + " : " + UTIL_ToString( neutralkills ) + " : " + item1 + " : " + item2 + " : " + item3 + " : " + item4 + " : " + item5 + " : " + item6 + " : " + hero + " : " + UTIL_ToString( newcolour ) + " : " + UTIL_ToString( towerkills ) + " : " + UTIL_ToString( raxkills ) + " : " + UTIL_ToString( courierkills ) + "] - " + m_DB->GetError( );
 
 	return RowID;
 }
@@ -1106,12 +1106,12 @@ uint32_t CGHostDBSQLite :: DotAPlayerCount( string name )
 		if( RC == SQLITE_ROW )
 			Count = sqlite3_column_int( Statement, 0 );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error counting dotaplayers [" + name + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error counting dotaplayers [" + name + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error counting dotaplayers [" + name + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error counting dotaplayers [" + name + "] - " + m_DB->GetError( );
 
 	return Count;
 }
@@ -1161,12 +1161,12 @@ CDBDotAPlayerSummary *CGHostDBSQLite :: DotAPlayerSummaryCheck( string name )
 					if( RC2 == SQLITE_ROW )
 						TotalWins = sqlite3_column_int( Statement2, 0 );
 					else if( RC2 == SQLITE_ERROR )
-						CONSOLE_Print( "[SQLITE3] error counting dotaplayersummary wins [" + name + "] - " + m_DB->GetError( ) );
+						BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error counting dotaplayersummary wins [" + name + "] - " + m_DB->GetError( );
 
 					m_DB->Finalize( Statement2 );
 				}
 				else
-					CONSOLE_Print( "[SQLITE3] prepare error counting dotaplayersummary wins [" + name + "] - " + m_DB->GetError( ) );
+					BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error counting dotaplayersummary wins [" + name + "] - " + m_DB->GetError( );
 
 				// calculate total losses
 
@@ -1181,27 +1181,27 @@ CDBDotAPlayerSummary *CGHostDBSQLite :: DotAPlayerSummaryCheck( string name )
 					if( RC3 == SQLITE_ROW )
 						TotalLosses = sqlite3_column_int( Statement3, 0 );
 					else if( RC3 == SQLITE_ERROR )
-						CONSOLE_Print( "[SQLITE3] error counting dotaplayersummary losses [" + name + "] - " + m_DB->GetError( ) );
+						BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error counting dotaplayersummary losses [" + name + "] - " + m_DB->GetError( );
 
 					m_DB->Finalize( Statement3 );
 				}
 				else
-					CONSOLE_Print( "[SQLITE3] prepare error counting dotaplayersummary losses [" + name + "] - " + m_DB->GetError( ) );
+					BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error counting dotaplayersummary losses [" + name + "] - " + m_DB->GetError( );
 
 				// done
 
 				DotAPlayerSummary = new CDBDotAPlayerSummary( string( ), name, TotalGames, TotalWins, TotalLosses, TotalKills, TotalDeaths, TotalCreepKills, TotalCreepDenies, TotalAssists, TotalNeutralKills, TotalTowerKills, TotalRaxKills, TotalCourierKills );
 			}
 			else
-				CONSOLE_Print( "[SQLITE3] error checking dotaplayersummary [" + name + "] - row doesn't have 7 columns" );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking dotaplayersummary [" + name + "] - row doesn't have 7 columns";
 		}
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error checking dotaplayersummary [" + name + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking dotaplayersummary [" + name + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error checking dotaplayersummary [" + name + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error checking dotaplayersummary [" + name + "] - " + m_DB->GetError( );
 
 	return DotAPlayerSummary;
 }
@@ -1229,15 +1229,15 @@ string CGHostDBSQLite :: FromCheck( uint32_t ip )
 			if( Row->size( ) == 1 )
 				From = (*Row)[0];
 			else
-				CONSOLE_Print( "[SQLITE3] error checking iptocountry [" + UTIL_ToString( ip ) + "] - row doesn't have 1 column" );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking iptocountry [" + UTIL_ToString( ip ) + "] - row doesn't have 1 column";
 		}
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error checking iptocountry [" + UTIL_ToString( ip ) + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error checking iptocountry [" + UTIL_ToString( ip ) + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error checking iptocountry [" + UTIL_ToString( ip ) + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error checking iptocountry [" + UTIL_ToString( ip ) + "] - " + m_DB->GetError( );
 
 	return From;
 }
@@ -1264,12 +1264,12 @@ bool CGHostDBSQLite :: FromAdd( uint32_t ip1, uint32_t ip2, string country )
 		if( RC == SQLITE_DONE )
 			Success = true;
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding iptocountry [" + UTIL_ToString( ip1 ) + " : " + UTIL_ToString( ip2 ) + " : " + country + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding iptocountry [" + UTIL_ToString( ip1 ) + " : " + UTIL_ToString( ip2 ) + " : " + country + "] - " + m_DB->GetError( );
 
 		m_DB->Reset( FromAddStmt );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding iptocountry [" + UTIL_ToString( ip1 ) + " : " + UTIL_ToString( ip2 ) + " : " + country + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding iptocountry [" + UTIL_ToString( ip1 ) + " : " + UTIL_ToString( ip2 ) + " : " + country + "] - " + m_DB->GetError( );
 
 	return Success;
 }
@@ -1295,12 +1295,12 @@ bool CGHostDBSQLite :: DownloadAdd( string map, uint32_t mapsize, string name, s
 		if( RC == SQLITE_DONE )
 			Success = true;
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding download [" + map + " : " + UTIL_ToString( mapsize ) + " : " + name + " : " + ip + " : " + UTIL_ToString( spoofed ) + " : " + spoofedrealm + " : " + UTIL_ToString( downloadtime ) + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding download [" + map + " : " + UTIL_ToString( mapsize ) + " : " + name + " : " + ip + " : " + UTIL_ToString( spoofed ) + " : " + spoofedrealm + " : " + UTIL_ToString( downloadtime ) + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding download [" + map + " : " + UTIL_ToString( mapsize ) + " : " + name + " : " + ip + " : " + UTIL_ToString( spoofed ) + " : " + spoofedrealm + " : " + UTIL_ToString( downloadtime ) + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding download [" + map + " : " + UTIL_ToString( mapsize ) + " : " + name + " : " + ip + " : " + UTIL_ToString( spoofed ) + " : " + spoofedrealm + " : " + UTIL_ToString( downloadtime ) + "] - " + m_DB->GetError( );
 
 	return Success;
 }
@@ -1326,12 +1326,12 @@ uint32_t CGHostDBSQLite :: W3MMDPlayerAdd( string category, uint32_t gameid, uin
 		if( RC == SQLITE_DONE )
 			RowID = m_DB->LastRowID( );
 		else if( RC == SQLITE_ERROR )
-			CONSOLE_Print( "[SQLITE3] error adding w3mmdplayer [" + category + " : " + UTIL_ToString( gameid ) + " : " + UTIL_ToString( pid ) + " : " + name + " : " + flag + " : " + UTIL_ToString( leaver ) + " : " + UTIL_ToString( practicing ) + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding w3mmdplayer [" + category + " : " + UTIL_ToString( gameid ) + " : " + UTIL_ToString( pid ) + " : " + name + " : " + flag + " : " + UTIL_ToString( leaver ) + " : " + UTIL_ToString( practicing ) + "] - " + m_DB->GetError( );
 
 		m_DB->Finalize( Statement );
 	}
 	else
-		CONSOLE_Print( "[SQLITE3] prepare error adding w3mmdplayer [" + category + " : " + UTIL_ToString( gameid ) + " : " + UTIL_ToString( pid ) + " : " + name + " : " + flag + " : " + UTIL_ToString( leaver ) + " : " + UTIL_ToString( practicing ) + "] - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding w3mmdplayer [" + category + " : " + UTIL_ToString( gameid ) + " : " + UTIL_ToString( pid ) + " : " + name + " : " + flag + " : " + UTIL_ToString( leaver ) + " : " + UTIL_ToString( practicing ) + "] - " + m_DB->GetError( );
 
 	return RowID;
 }
@@ -1361,7 +1361,7 @@ bool CGHostDBSQLite :: W3MMDVarAdd( uint32_t gameid, map<VarP,int32_t> var_ints 
 			if( RC == SQLITE_ERROR )
 			{
 				Success = false;
-				CONSOLE_Print( "[SQLITE3] error adding w3mmdvar-int [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + UTIL_ToString( i->second ) + "] - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding w3mmdvar-int [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + UTIL_ToString( i->second ) + "] - " + m_DB->GetError( );
 				break;
 			}
 
@@ -1370,7 +1370,7 @@ bool CGHostDBSQLite :: W3MMDVarAdd( uint32_t gameid, map<VarP,int32_t> var_ints 
 		else
 		{
 			Success = false;
-			CONSOLE_Print( "[SQLITE3] prepare error adding w3mmdvar-int [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + UTIL_ToString( i->second ) + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding w3mmdvar-int [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + UTIL_ToString( i->second ) + "] - " + m_DB->GetError( );
 			break;
 		}
 	}
@@ -1406,7 +1406,7 @@ bool CGHostDBSQLite :: W3MMDVarAdd( uint32_t gameid, map<VarP,double> var_reals 
 			if( RC == SQLITE_ERROR )
 			{
 				Success = false;
-				CONSOLE_Print( "[SQLITE3] error adding w3mmdvar-real [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + UTIL_ToString( i->second, 10 ) + "] - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding w3mmdvar-real [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + UTIL_ToString( i->second, 10 ) + "] - " + m_DB->GetError( );
 				break;
 			}
 
@@ -1415,7 +1415,7 @@ bool CGHostDBSQLite :: W3MMDVarAdd( uint32_t gameid, map<VarP,double> var_reals 
 		else
 		{
 			Success = false;
-			CONSOLE_Print( "[SQLITE3] prepare error adding w3mmdvar-real [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + UTIL_ToString( i->second, 10 ) + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding w3mmdvar-real [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + UTIL_ToString( i->second, 10 ) + "] - " + m_DB->GetError( );
 			break;
 		}
 	}
@@ -1451,7 +1451,7 @@ bool CGHostDBSQLite :: W3MMDVarAdd( uint32_t gameid, map<VarP,string> var_string
 			if( RC == SQLITE_ERROR )
 			{
 				Success = false;
-				CONSOLE_Print( "[SQLITE3] error adding w3mmdvar-string [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + i->second + "] - " + m_DB->GetError( ) );
+				BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] error adding w3mmdvar-string [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + i->second + "] - " + m_DB->GetError( );
 				break;
 			}
 
@@ -1460,7 +1460,7 @@ bool CGHostDBSQLite :: W3MMDVarAdd( uint32_t gameid, map<VarP,string> var_string
 		else
 		{
 			Success = false;
-			CONSOLE_Print( "[SQLITE3] prepare error adding w3mmdvar-string [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + i->second + "] - " + m_DB->GetError( ) );
+			BOOST_LOG_TRIVIAL(warning) << "[SQLITE3] prepare error adding w3mmdvar-string [" + UTIL_ToString( gameid ) + " : " + UTIL_ToString( i->first.first ) + " : " + i->first.second + " : " + i->second + "] - " + m_DB->GetError( );
 			break;
 		}
 	}

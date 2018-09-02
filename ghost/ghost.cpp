@@ -70,10 +70,8 @@
 
 string gCFGFile;
 string gLogFile;
-uint32_t gLogMethod;
-ofstream *gLog = NULL;
+string gLogLevel;
 CGHost *gGHost = NULL;
-boost::mutex PrintMutex;
 
 uint32_t GetTime( )
 {
@@ -109,7 +107,7 @@ uint32_t GetTicks( )
 
 void SignalCatcher2( int s )
 {
-	CONSOLE_Print( "[!!!] caught signal " + UTIL_ToString( s ) + ", exiting NOW" );
+	BOOST_LOG_TRIVIAL(fatal) << "[!!!] caught signal " + UTIL_ToString( s ) + ", exiting NOW";
 
 	if( gGHost )
 	{
@@ -127,72 +125,12 @@ void SignalCatcher( int s )
 	// signal( SIGABRT, SignalCatcher2 );
 	signal( SIGINT, SignalCatcher2 );
 
-	CONSOLE_Print( "[!!!] caught signal " + UTIL_ToString( s ) + ", exiting nicely" );
+	BOOST_LOG_TRIVIAL(fatal) << "[!!!] caught signal " + UTIL_ToString( s ) + ", exiting nicely";
 
 	if( gGHost )
 		gGHost->m_ExitingNice = true;
 	else
 		exit( 1 );
-}
-
-void CONSOLE_Print( string message )
-{
-	boost::mutex::scoped_lock printLock( PrintMutex );
-	cout << message << endl;
-
-	// logging
-
-	if( !gLogFile.empty( ) )
-	{
-		if( gLogMethod == 1 )
-		{
-			ofstream Log;
-			Log.open( gLogFile.c_str( ), ios :: app );
-
-			if( !Log.fail( ) )
-			{
-				time_t Now = time( NULL );
-				string Time = asctime( localtime( &Now ) );
-
-				// erase the newline
-
-				Time.erase( Time.size( ) - 1 );
-				Log << "[" << Time << "] " << message << endl;
-				Log.close( );
-			}
-		}
-		else if( gLogMethod == 2 )
-		{
-			if( gLog && !gLog->fail( ) )
-			{
-				time_t Now = time( NULL );
-				string Time = asctime( localtime( &Now ) );
-
-				// erase the newline
-
-				Time.erase( Time.size( ) - 1 );
-				*gLog << "[" << Time << "] " << message << endl;
-				gLog->flush( );
-			}
-		}
-	}
-	
-	printLock.unlock( );
-}
-
-void DEBUG_Print( string message )
-{
-	cout << message << endl;
-}
-
-void DEBUG_Print( BYTEARRAY b )
-{
-	cout << "{ ";
-
-	for( unsigned int i = 0; i < b.size( ); ++i )
-		cout << hex << (int)b[i] << " ";
-
-	cout << "}" << endl;
 }
 
 //
@@ -201,8 +139,17 @@ void DEBUG_Print( BYTEARRAY b )
 
 int main( int argc, char **argv )
 {
+	// logging
+	boost::log::add_common_attributes();
+	boost::log::register_simple_formatter_factory<boost::log::trivial::severity_level, char>("Severity");
+
+	// - console
+	boost::log::add_console_log(std::cout, boost::log::keywords::format = "[%TimeStamp%][%Severity%]: %Message%");
+
+	// initialize random number generator
 	srand( time( NULL ) );
 
+	// arguments
 	gCFGFile = "ghost.cfg";
 
 	if( argc > 1 && argv[1] )
@@ -214,48 +161,48 @@ int main( int argc, char **argv )
 	CFG.Read( "default.cfg" );
 	CFG.Read( gCFGFile );
 	gLogFile = CFG.GetString( "bot_log", string( ) );
-	gLogMethod = CFG.GetInt( "bot_logmethod", 1 );
+	gLogLevel = CFG.GetString( "bot_loglevel", "INFO" );
 
+	
+	// logging - logfile
 	if( !gLogFile.empty( ) )
 	{
-		if( gLogMethod == 1 )
-		{
-			// log method 1: open, append, and close the log for every message
-			// this works well on Linux but poorly on Windows, particularly as the log file grows in size
-			// the log file can be edited/moved/deleted while GHost++ is running
-		}
-		else if( gLogMethod == 2 )
-		{
-			// log method 2: open the log on startup, flush the log for every message, close the log on shutdown
-			// the log file CANNOT be edited/moved/deleted while GHost++ is running
-
-			gLog = new ofstream( );
-			gLog->open( gLogFile.c_str( ), ios :: app );
-		}
+		// configure logfile
+		boost::log::add_file_log(
+        	boost::log::keywords::target = "logs/", boost::log::keywords::file_name = gLogFile + "_%y%m%d_%3N.log",
+        	boost::log::keywords::rotation_size = 10 * 1024 * 1024,
+        	boost::log::keywords::scan_method = boost::log::sinks::file::scan_matching,
+			boost::log::keywords::format = "[%TimeStamp%][%Severity%]: %Message%");
 	}
 
-	CONSOLE_Print( "[GHOST] starting up" );
-
-	if( !gLogFile.empty( ) )
+	// - loglevel
+	if ( boost::iequals(gLogLevel, "TRACE") )
 	{
-		if( gLogMethod == 0 )
-			CONSOLE_Print( "[GHOST] using log method 0, file based logging is disabled" );
-		else if( gLogMethod == 1 )
-			CONSOLE_Print( "[GHOST] using log method 1, logging is enabled and [" + gLogFile + "] will not be locked" );
-		else if( gLogMethod == 2 )
-		{
-			if( gLog->fail( ) )
-				CONSOLE_Print( "[GHOST] using log method 2 but unable to open [" + gLogFile + "] for appending, logging is disabled" );
-			else
-				CONSOLE_Print( "[GHOST] using log method 2, logging is enabled and [" + gLogFile + "] is now locked" );
-		}
-		else {
-			CONSOLE_Print( "[GHOST] unknown log method specified, logging disabled" );
-		}
+		boost::log::core::get()->set_filter( boost::log::trivial::severity >= boost::log::trivial::trace );
 	}
-	else
-		CONSOLE_Print( "[GHOST] no log file specified, logging is disabled" );
+	else if ( boost::iequals(gLogLevel, "DEBUG") )
+	{
+		boost::log::core::get()->set_filter( boost::log::trivial::severity >= boost::log::trivial::debug );
+	}
+	else if ( boost::iequals(gLogLevel, "INFO") )
+	{
+		boost::log::core::get()->set_filter( boost::log::trivial::severity >= boost::log::trivial::info );
+	}
+	else if ( boost::iequals(gLogLevel, "WARNING") )
+	{
+		boost::log::core::get()->set_filter( boost::log::trivial::severity >= boost::log::trivial::warning );
+	}
+	else if ( boost::iequals(gLogLevel, "ERROR") )
+	{
+		boost::log::core::get()->set_filter( boost::log::trivial::severity >= boost::log::trivial::error );
+	}
+	else if ( boost::iequals(gLogLevel, "FATAL") )
+	{
+		boost::log::core::get()->set_filter( boost::log::trivial::severity >= boost::log::trivial::fatal );
+	}
 
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] starting up";
+	
 	// catch SIGABRT and SIGINT
 
 	// signal( SIGABRT, SignalCatcher );
@@ -281,15 +228,15 @@ int main( int argc, char **argv )
 			break;
 		}
 		else if( i < 5 )
-			CONSOLE_Print( "[GHOST] error setting Windows timer resolution to " + UTIL_ToString( i ) + " milliseconds, trying a higher resolution" );
+			BOOST_LOG_TRIVIAL(error) << "[GHOST] error setting Windows timer resolution to " + UTIL_ToString( i ) + " milliseconds, trying a higher resolution";
 		else
 		{
-			CONSOLE_Print( "[GHOST] error setting Windows timer resolution" );
+			BOOST_LOG_TRIVIAL(error) << "[GHOST] error setting Windows timer resolution";
 			return 1;
 		}
 	}
 
-	CONSOLE_Print( "[GHOST] using Windows timer with resolution " + UTIL_ToString( TimerResolution ) + " milliseconds" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] using Windows timer with resolution " + UTIL_ToString( TimerResolution ) + " milliseconds";
 #elif __APPLE__
 	// not sure how to get the resolution
 #else
@@ -298,26 +245,26 @@ int main( int argc, char **argv )
 	struct timespec Resolution;
 
 	if( clock_getres( CLOCK_MONOTONIC, &Resolution ) == -1 )
-		CONSOLE_Print( "[GHOST] error getting monotonic timer resolution" );
+		BOOST_LOG_TRIVIAL(error) << "[GHOST] error getting monotonic timer resolution";
 	else
-		CONSOLE_Print( "[GHOST] using monotonic timer with resolution " + UTIL_ToString( (double)( Resolution.tv_nsec / 1000 ), 2 ) + " microseconds" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] using monotonic timer with resolution " + UTIL_ToString( (double)( Resolution.tv_nsec / 1000 ), 2 ) + " microseconds";
 #endif
 
 #ifdef WIN32
 	// initialize winsock
 
-	CONSOLE_Print( "[GHOST] starting winsock" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] starting winsock";
 	WSADATA wsadata;
 
 	if( WSAStartup( MAKEWORD( 2, 2 ), &wsadata ) != 0 )
 	{
-		CONSOLE_Print( "[GHOST] error starting winsock" );
+		BOOST_LOG_TRIVIAL(fatal) << "[GHOST] error starting winsock";
 		return 1;
 	}
 
 	// increase process priority
 
-	CONSOLE_Print( "[GHOST] setting process priority to \"above normal\"" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] setting process priority to \"above normal\"";
 	SetPriorityClass( GetCurrentProcess( ), ABOVE_NORMAL_PRIORITY_CLASS );
 #endif
 
@@ -336,28 +283,20 @@ int main( int argc, char **argv )
 
 	// shutdown ghost
 
-	CONSOLE_Print( "[GHOST] shutting down" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] shutting down";
 	delete gGHost;
 	gGHost = NULL;
 
 #ifdef WIN32
 	// shutdown winsock
 
-	CONSOLE_Print( "[GHOST] shutting down winsock" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] shutting down winsock";
 	WSACleanup( );
 
 	// shutdown timer
 
 	timeEndPeriod( TimerResolution );
 #endif
-
-	if( gLog )
-	{
-		if( !gLog->fail( ) )
-			gLog->close( );
-
-		delete gLog;
-	}
 
 	return 0;
 }
@@ -378,27 +317,27 @@ CGHost :: CGHost( CConfig *CFG )
 	m_SHA = new CSHA1( );
 	m_CurrentGame = NULL;
 	string DBType = CFG->GetString( "db_type", "sqlite3" );
-	CONSOLE_Print( "[GHOST] opening primary database" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] opening primary database";
 
 	if( DBType == "mysql" )
 	{
 #ifdef GHOST_MYSQL
 		m_DB = new CGHostDBMySQL( CFG );
 #else
-		CONSOLE_Print( "[GHOST] warning - this binary was not compiled with MySQL database support, using SQLite database instead" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - this binary was not compiled with MySQL database support, using SQLite database instead";
 		m_DB = new CGHostDBSQLite( CFG );
 #endif
 	}
 	else
 		m_DB = new CGHostDBSQLite( CFG );
 
-	CONSOLE_Print( "[GHOST] opening secondary (local) database" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] opening secondary (local) database";
 	m_DBLocal = new CGHostDBSQLite( CFG );
 
 	// get a list of local IP addresses
 	// this list is used elsewhere to determine if a player connecting to the bot is local or not
 
-	CONSOLE_Print( "[GHOST] attempting to find local IP addresses" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] attempting to find local IP addresses";
 
 #ifdef WIN32
 	// use a more reliable Windows specific method since the portable method doesn't always work properly on Windows
@@ -407,14 +346,14 @@ CGHost :: CGHost( CConfig *CFG )
 	SOCKET sd = WSASocket( AF_INET, SOCK_DGRAM, 0, 0, 0, 0 );
 
 	if( sd == SOCKET_ERROR )
-		CONSOLE_Print( "[GHOST] error finding local IP addresses - failed to create socket (error code " + UTIL_ToString( WSAGetLastError( ) ) + ")" );
+		BOOST_LOG_TRIVIAL(warning) << "[GHOST] error finding local IP addresses - failed to create socket (error code " + UTIL_ToString( WSAGetLastError( ) ) + ")";
 	else
 	{
 		INTERFACE_INFO InterfaceList[20];
 		unsigned long nBytesReturned;
 
 		if( WSAIoctl( sd, SIO_GET_INTERFACE_LIST, 0, 0, &InterfaceList, sizeof(InterfaceList), &nBytesReturned, 0, 0 ) == SOCKET_ERROR )
-			CONSOLE_Print( "[GHOST] error finding local IP addresses - WSAIoctl failed (error code " + UTIL_ToString( WSAGetLastError( ) ) + ")" );
+			BOOST_LOG_TRIVIAL(warning) << "[GHOST] error finding local IP addresses - WSAIoctl failed (error code " + UTIL_ToString( WSAGetLastError( ) ) + ")";
 		else
 		{
 			int nNumInterfaces = nBytesReturned / sizeof(INTERFACE_INFO);
@@ -423,7 +362,7 @@ CGHost :: CGHost( CConfig *CFG )
 			{
 				sockaddr_in *pAddress;
 				pAddress = (sockaddr_in *)&(InterfaceList[i].iiAddress);
-				CONSOLE_Print( "[GHOST] local IP address #" + UTIL_ToString( i + 1 ) + " is [" + string( inet_ntoa( pAddress->sin_addr ) ) + "]" );
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] local IP address #" + UTIL_ToString( i + 1 ) + " is [" + string( inet_ntoa( pAddress->sin_addr ) ) + "]";
 				m_LocalAddresses.push_back( UTIL_CreateByteArray( (uint32_t)pAddress->sin_addr.s_addr, false ) );
 			}
 		}
@@ -436,21 +375,21 @@ CGHost :: CGHost( CConfig *CFG )
 	char HostName[255];
 
 	if( gethostname( HostName, 255 ) == SOCKET_ERROR )
-		CONSOLE_Print( "[GHOST] error finding local IP addresses - failed to get local hostname" );
+		BOOST_LOG_TRIVIAL(warning) << "[GHOST] error finding local IP addresses - failed to get local hostname";
 	else
 	{
-		CONSOLE_Print( "[GHOST] local hostname is [" + string( HostName ) + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] local hostname is [" + string( HostName ) + "]";
 		struct hostent *HostEnt = gethostbyname( HostName );
 
 		if( !HostEnt )
-			CONSOLE_Print( "[GHOST] error finding local IP addresses - gethostbyname failed" );
+			BOOST_LOG_TRIVIAL(warning) << "[GHOST] error finding local IP addresses - gethostbyname failed";
 		else
 		{
 			for( int i = 0; HostEnt->h_addr_list[i] != NULL; ++i )
 			{
 				struct in_addr Address;
 				memcpy( &Address, HostEnt->h_addr_list[i], sizeof(struct in_addr) );
-				CONSOLE_Print( "[GHOST] local IP address #" + UTIL_ToString( i + 1 ) + " is [" + string( inet_ntoa( Address ) ) + "]" );
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] local IP address #" + UTIL_ToString( i + 1 ) + " is [" + string( inet_ntoa( Address ) ) + "]";
 				m_LocalAddresses.push_back( UTIL_CreateByteArray( (uint32_t)Address.s_addr, false ) );
 			}
 		}
@@ -478,9 +417,9 @@ CGHost :: CGHost( CConfig *CFG )
 	m_TFT = CFG->GetInt( "bot_tft", 1 ) == 0 ? false : true;
 
 	if( m_TFT )
-		CONSOLE_Print( "[GHOST] acting as Warcraft III: The Frozen Throne" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] acting as Warcraft III: The Frozen Throne";
 	else
-		CONSOLE_Print( "[GHOST] acting as Warcraft III: Reign of Chaos" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] acting as Warcraft III: Reign of Chaos";
 
 	m_HostPort = CFG->GetInt( "bot_hostport", 6112 );
 	m_Reconnect = CFG->GetInt( "bot_reconnect", 1 ) == 0 ? false : true;
@@ -540,6 +479,7 @@ CGHost :: CGHost( CConfig *CFG )
 		int BNLSPort = CFG->GetInt( Prefix + "bnlsport", 9367 );
 		int BNLSWardenCookie = CFG->GetInt( Prefix + "bnlswardencookie", 0 );
 		unsigned char War3Version = CFG->GetInt( Prefix + "custom_war3version", 30 );
+		string War3PathCustom = CFG->GetString( Prefix + "custom_war3path", string( ) );
 		BYTEARRAY EXEVersion = UTIL_ExtractNumbers( CFG->GetString( Prefix + "custom_exeversion", string( ) ), 4 );
 		BYTEARRAY EXEVersionHash = UTIL_ExtractNumbers( CFG->GetString( Prefix + "custom_exeversionhash", string( ) ), 4 );
 		string PasswordHashType = CFG->GetString( Prefix + "custom_passwordhashtype", string( ) );
@@ -551,64 +491,64 @@ CGHost :: CGHost( CConfig *CFG )
 
 		if( CDKeyROC.empty( ) )
 		{
-			CONSOLE_Print( "[GHOST] missing " + Prefix + "cdkeyroc, skipping this battle.net connection" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] missing " + Prefix + "cdkeyroc, skipping this battle.net connection";
 			continue;
 		}
 
 		if( m_TFT && CDKeyTFT.empty( ) )
 		{
-			CONSOLE_Print( "[GHOST] missing " + Prefix + "cdkeytft, skipping this battle.net connection" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] missing " + Prefix + "cdkeytft, skipping this battle.net connection";
 			continue;
 		}
 
 		if( UserName.empty( ) )
 		{
-			CONSOLE_Print( "[GHOST] missing " + Prefix + "username, skipping this battle.net connection" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] missing " + Prefix + "username, skipping this battle.net connection";
 			continue;
 		}
 
 		if( UserPassword.empty( ) )
 		{
-			CONSOLE_Print( "[GHOST] missing " + Prefix + "password, skipping this battle.net connection" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] missing " + Prefix + "password, skipping this battle.net connection";
 			continue;
 		}
 
-		CONSOLE_Print( "[GHOST] found battle.net connection #" + UTIL_ToString( i ) + " for server [" + Server + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] found battle.net connection #" + UTIL_ToString( i ) + " for server [" + Server + "]";
 
 		if( Locale == "system" )
 		{
 #ifdef WIN32
-			CONSOLE_Print( "[GHOST] using system locale of " + UTIL_ToString( LocaleID ) );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] using system locale of " + UTIL_ToString( LocaleID );
 #else
-			CONSOLE_Print( "[GHOST] unable to get system locale, using default locale of 1033" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] unable to get system locale, using default locale of 1033";
 #endif
 		}
 
-		m_BNETs.push_back( new CBNET( this, Server, ServerAlias, BNLSServer, (uint16_t)BNLSPort, (uint32_t)BNLSWardenCookie, CDKeyROC, CDKeyTFT, CountryAbbrev, Country, LocaleID, UserName, UserPassword, FirstChannel, RootAdmin, BNETCommandTrigger[0], HoldFriends, HoldClan, PublicCommands, War3Version, EXEVersion, EXEVersionHash, PasswordHashType, PVPGNRealmName, MaxMessageLength, i ) );
+		m_BNETs.push_back( new CBNET( this, Server, ServerAlias, BNLSServer, (uint16_t)BNLSPort, (uint32_t)BNLSWardenCookie, CDKeyROC, CDKeyTFT, CountryAbbrev, Country, LocaleID, UserName, UserPassword, FirstChannel, RootAdmin, BNETCommandTrigger[0], HoldFriends, HoldClan, PublicCommands, War3Version, War3PathCustom, EXEVersion, EXEVersionHash, PasswordHashType, PVPGNRealmName, MaxMessageLength, i ) );
 	}
 
 	if( m_BNETs.empty( ) )
-		CONSOLE_Print( "[GHOST] warning - no battle.net connections found in config file" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - no battle.net connections found in config file";
 
 	// load the default maps
 
 	if ( !m_DefaultMap.empty() )
 	{
 		// load map - no user name / whisper since no user is triggering this event
-		CONSOLE_Print( "[GHOST] initial map specified in bot_defaultmap [" + m_DefaultMap + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] initial map specified in bot_defaultmap [" + m_DefaultMap + "]";
 		LoadMap( m_DefaultMap, NULL, "", false );
 	}
 	else if ( !m_DefaultMapCfg.empty() )
 	{
 		// load map - no user name / whisper since no user is triggering this event
-		CONSOLE_Print( "[GHOST] initial map specified in bot_defaultmapcfg [" + m_DefaultMapCfg + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] initial map specified in bot_defaultmapcfg [" + m_DefaultMapCfg + "]";
 		LoadMapConfig( m_DefaultMapCfg, NULL, "", false );
 	}
 
 	// if default map couldn't be loaded, use the default wormwar
 	if ( m_Map == NULL )
 	{
-		CONSOLE_Print( "[GHOST] error - no default map configuration could be loaded" );
+		BOOST_LOG_TRIVIAL(warning) << "[GHOST] error - no default map configuration could be loaded";
 	}
 
 	m_AutoHostMap = new CMap( *m_Map );
@@ -619,12 +559,12 @@ CGHost :: CGHost( CConfig *CFG )
 	LoadIPToCountryData( );
 
 	if( m_BNETs.empty( ) )
-		CONSOLE_Print( "[GHOST] warning - no battle.net connections found" );
+		BOOST_LOG_TRIVIAL(warning) << "[GHOST] warning - no battle.net connections found";
 
 #ifdef GHOST_MYSQL
-	CONSOLE_Print( "[GHOST] GHost++ Version " + m_Version + " (with MySQL support)" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] GHost++ Version " + m_Version + " (with MySQL support)";
 #else
-	CONSOLE_Print( "[GHOST] GHost++ Version " + m_Version + " (without MySQL support)" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] GHost++ Version " + m_Version + " (without MySQL support)";
 #endif
 }
 
@@ -657,7 +597,7 @@ CGHost :: ~CGHost( )
 	// but if you try to recreate the CGHost object within a single session you will probably leak resources!
 
 	if( !m_Callables.empty( ) )
-		CONSOLE_Print( "[GHOST] warning - " + UTIL_ToString( m_Callables.size( ) ) + " orphaned callables were leaked (this is not an error)" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - " + UTIL_ToString( m_Callables.size( ) ) + " orphaned callables were leaked (this is not an error)";
 
 	delete m_Language;
 	delete m_Map;
@@ -671,13 +611,13 @@ bool CGHost :: Update( long usecBlock )
 
 	if( m_DB->HasError( ) )
 	{
-		CONSOLE_Print( "[GHOST] database error - " + m_DB->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[GHOST] database error - " + m_DB->GetError( );
 		return true;
 	}
 
 	if( m_DBLocal->HasError( ) )
 	{
-		CONSOLE_Print( "[GHOST] local database error - " + m_DBLocal->GetError( ) );
+		BOOST_LOG_TRIVIAL(warning) << "[GHOST] local database error - " + m_DBLocal->GetError( );
 		return true;
 	}
 
@@ -715,7 +655,7 @@ bool CGHost :: Update( long usecBlock )
 	{
 		if( !m_BNETs.empty( ) )
 		{
-			CONSOLE_Print( "[GHOST] deleting all battle.net connections in preparation for exiting nicely" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] deleting all battle.net connections in preparation for exiting nicely";
 
 			for( vector<CBNET *> :: iterator i = m_BNETs.begin( ); i != m_BNETs.end( ); ++i )
 				delete *i;
@@ -725,7 +665,7 @@ bool CGHost :: Update( long usecBlock )
 
 		if( m_CurrentGame )
 		{
-			CONSOLE_Print( "[GHOST] deleting current game in preparation for exiting nicely" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] deleting current game in preparation for exiting nicely";
 			m_CurrentGame->doDelete( );
 			m_CurrentGame = NULL;
 		}
@@ -734,8 +674,8 @@ bool CGHost :: Update( long usecBlock )
 		{
 			if( !m_AllGamesFinished )
 			{
-				CONSOLE_Print( "[GHOST] all games finished, waiting 60 seconds for threads to finish" );
-				CONSOLE_Print( "[GHOST] there are " + UTIL_ToString( m_Callables.size( ) ) + " threads in progress" );
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] all games finished, waiting 60 seconds for threads to finish";
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] there are " + UTIL_ToString( m_Callables.size( ) ) + " threads in progress";
 				m_AllGamesFinished = true;
 				m_AllGamesFinishedTime = GetTime( );
 			}
@@ -743,13 +683,13 @@ bool CGHost :: Update( long usecBlock )
 			{
 				if( m_Callables.empty( ) )
 				{
-					CONSOLE_Print( "[GHOST] all threads finished, exiting nicely" );
+					BOOST_LOG_TRIVIAL(info) << "[GHOST] all threads finished, exiting nicely";
 					m_Exiting = true;
 				}
 				else if( GetTime( ) - m_AllGamesFinishedTime >= 60 )
 				{
-					CONSOLE_Print( "[GHOST] waited 60 seconds for threads to finish, exiting anyway" );
-					CONSOLE_Print( "[GHOST] there are " + UTIL_ToString( m_Callables.size( ) ) + " threads still in progress which will be terminated" );
+					BOOST_LOG_TRIVIAL(info) << "[GHOST] waited 60 seconds for threads to finish, exiting anyway";
+					BOOST_LOG_TRIVIAL(info) << "[GHOST] there are " + UTIL_ToString( m_Callables.size( ) ) + " threads still in progress which will be terminated";
 					m_Exiting = true;
 				}
 			}
@@ -782,10 +722,10 @@ bool CGHost :: Update( long usecBlock )
 			m_ReconnectSocket = new CTCPServer( );
 
 			if( m_ReconnectSocket->Listen( m_BindAddress, m_ReconnectPort ) )
-				CONSOLE_Print( "[GHOST] listening for GProxy++ reconnects on port " + UTIL_ToString( m_ReconnectPort ) );
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] listening for GProxy++ reconnects on port " + UTIL_ToString( m_ReconnectPort );
 			else
 			{
-				CONSOLE_Print( "[GHOST] error listening for GProxy++ reconnects on port " + UTIL_ToString( m_ReconnectPort ) );
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] error listening for GProxy++ reconnects on port " + UTIL_ToString( m_ReconnectPort );
 				delete m_ReconnectSocket;
 				m_ReconnectSocket = NULL;
 				m_Reconnect = false;
@@ -793,7 +733,7 @@ bool CGHost :: Update( long usecBlock )
 		}
 		else if( m_ReconnectSocket->HasError( ) )
 		{
-			CONSOLE_Print( "[GHOST] GProxy++ reconnect listener error (" + m_ReconnectSocket->GetErrorString( ) + ")" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] GProxy++ reconnect listener error (" + m_ReconnectSocket->GetErrorString( ) + ")";
 			delete m_ReconnectSocket;
 			m_ReconnectSocket = NULL;
 			m_Reconnect = false;
@@ -1008,7 +948,7 @@ bool CGHost :: Update( long usecBlock )
 			// check if we should load a random map for the next game 
 			if( m_AutoHostRandomizeMapType != "none" )
 			{
-				CONSOLE_Print( "[GHOST] Loading random map for next autohosted game" ); 
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] Loading random map for next autohosted game"; 
 				 
 				// load random map
 				boost::filesystem::path newMap;
@@ -1056,10 +996,10 @@ bool CGHost :: Update( long usecBlock )
 							if( !m_Map->GetMapMatchMakingCategory( ).empty( ) )
 							{
 								if( !( m_Map->GetMapOptions( ) & MAPOPT_FIXEDPLAYERSETTINGS ) )
-									CONSOLE_Print( "[GHOST] autohostmm - map_matchmakingcategory [" + m_Map->GetMapMatchMakingCategory( ) + "] found but matchmaking can only be used with fixed player settings, matchmaking disabled" );
+									BOOST_LOG_TRIVIAL(info) << "[GHOST] autohostmm - map_matchmakingcategory [" + m_Map->GetMapMatchMakingCategory( ) + "] found but matchmaking can only be used with fixed player settings, matchmaking disabled";
 								else
 								{
-									CONSOLE_Print( "[GHOST] autohostmm - map_matchmakingcategory [" + m_Map->GetMapMatchMakingCategory( ) + "] found, matchmaking enabled" );
+									BOOST_LOG_TRIVIAL(info) << "[GHOST] autohostmm - map_matchmakingcategory [" + m_Map->GetMapMatchMakingCategory( ) + "] found, matchmaking enabled";
 
 									m_CurrentGame->SetMatchMaking( true );
 									m_CurrentGame->SetMinimumScore( m_AutoHostMinimumScore );
@@ -1067,13 +1007,13 @@ bool CGHost :: Update( long usecBlock )
 								}
 							}
 							else
-								CONSOLE_Print( "[GHOST] autohostmm - map_matchmakingcategory not found, matchmaking disabled" );
+								BOOST_LOG_TRIVIAL(info) << "[GHOST] autohostmm - map_matchmakingcategory not found, matchmaking disabled";
 						}
 					}
 				}
 				else
 				{
-					CONSOLE_Print( "[GHOST] stopped auto hosting, next game name [" + GameName + "] is too long (the maximum is 31 characters)" );
+					BOOST_LOG_TRIVIAL(info) << "[GHOST] stopped auto hosting, next game name [" + GameName + "] is too long (the maximum is 31 characters)";
 					m_AutoHostGameName.clear( );
 					m_AutoHostOwner.clear( );
 					m_AutoHostServer.clear( );
@@ -1086,7 +1026,7 @@ bool CGHost :: Update( long usecBlock )
 			}
 			else
 			{
-				CONSOLE_Print( "[GHOST] stopped auto hosting, map config file [" + m_AutoHostMap->GetCFGFile( ) + "] is invalid" );
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] stopped auto hosting, map config file [" + m_AutoHostMap->GetCFGFile( ) + "] is invalid";
 				m_AutoHostGameName.clear( );
 				m_AutoHostOwner.clear( );
 				m_AutoHostServer.clear( );
@@ -1234,7 +1174,7 @@ void CGHost :: SetConfigs( CConfig *CFG )
 	if( m_VirtualHostName.size( ) > 15 )
 	{
 		m_VirtualHostName = "|cFF4080C0GHost";
-		CONSOLE_Print( "[GHOST] warning - bot_virtualhostname is longer than 15 characters, using default virtual host name" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - bot_virtualhostname is longer than 15 characters, using default virtual host name";
 	}
 
 	m_SpoofChecks = CFG->GetInt( "bot_spoofchecks", 2 );
@@ -1262,12 +1202,12 @@ void CGHost :: SetConfigs( CConfig *CFG )
 
 	if( m_VoteKickPercentage > 100 ) {
 		m_VoteKickPercentage = 100;
-		CONSOLE_Print( "[GHOST] warning - bot_votekickpercentage is greater than 100, using 100 instead" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - bot_votekickpercentage is greater than 100, using 100 instead";
 	}
 
 	if( m_VoteStartPercentage > 100 ) {
 		m_VoteStartPercentage = 100;
-		CONSOLE_Print( "[GHOST] warning - bot_votekickpercentage is greater than 100, using 100 instead" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - bot_votekickpercentage is greater than 100, using 100 instead";
 	}
 
 	m_MOTDFile = CFG->GetString( "bot_motdfile", "motd.txt" );
@@ -1284,17 +1224,17 @@ void CGHost :: LoadIPToCountryData( )
 	in.open( "ip-to-country.csv" );
 
 	if( in.fail( ) )
-		CONSOLE_Print( "[GHOST] warning - unable to read file [ip-to-country.csv], iptocountry data not loaded" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - unable to read file [ip-to-country.csv], iptocountry data not loaded";
 	else
 	{
-		CONSOLE_Print( "[GHOST] started loading [ip-to-country.csv]" );
+		BOOST_LOG_TRIVIAL(info) << "[GHOST] started loading [ip-to-country.csv]";
 
 		// the begin and commit statements are optimizations
 		// we're about to insert ~4 MB of data into the database so if we allow the database to treat each insert as a transaction it will take a LONG time
 		// todotodo: handle begin/commit failures a bit more gracefully
 
 		if( !m_DBLocal->Begin( ) )
-			CONSOLE_Print( "[GHOST] warning - failed to begin local database transaction, iptocountry data not loaded" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - failed to begin local database transaction, iptocountry data not loaded";
 		else
 		{
 			unsigned char Percent = 0;
@@ -1331,14 +1271,14 @@ void CGHost :: LoadIPToCountryData( )
 				if( NewPercent != Percent && NewPercent % 10 == 0 )
 				{
 					Percent = NewPercent;
-					CONSOLE_Print( "[GHOST] iptocountry data: " + UTIL_ToString( Percent ) + "% loaded" );
+					BOOST_LOG_TRIVIAL(info) << "[GHOST] iptocountry data: " + UTIL_ToString( Percent ) + "% loaded";
 				}
 			}
 
 			if( !m_DBLocal->Commit( ) )
-				CONSOLE_Print( "[GHOST] warning - failed to commit local database transaction, iptocountry data not loaded" );
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] warning - failed to commit local database transaction, iptocountry data not loaded";
 			else
-				CONSOLE_Print( "[GHOST] finished loading [ip-to-country.csv]" );
+				BOOST_LOG_TRIVIAL(info) << "[GHOST] finished loading [ip-to-country.csv]";
 		}
 
 		in.close( );
@@ -1400,7 +1340,7 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 
 		if( MapPath1 != MapPath2 )
 		{
-			CONSOLE_Print( "[GHOST] path mismatch, saved game path is [" + MapPath1 + "] but map path is [" + MapPath2 + "]" );
+			BOOST_LOG_TRIVIAL(info) << "[GHOST] path mismatch, saved game path is [" + MapPath1 + "] but map path is [" + MapPath2 + "]";
 
 			for( vector<CBNET *> :: iterator i = m_BNETs.begin( ); i != m_BNETs.end( ); ++i )
 			{
@@ -1449,7 +1389,7 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 
 	lock.unlock( );
 
-	CONSOLE_Print( "[GHOST] creating game [" + gameName + "]" );
+	BOOST_LOG_TRIVIAL(info) << "[GHOST] creating game [" + gameName + "]";
 
 	if( saveGame )
 		m_CurrentGame = new CGame( this, map, m_SaveGame, m_HostPort, gameState, gameName, ownerName, creatorName, creatorServer );
@@ -1517,7 +1457,7 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 	
 	// start the game thread
 	boost::thread(&CBaseGame::loop, m_CurrentGame);
-	CONSOLE_Print("[GameThread] Made new game thread");
+	BOOST_LOG_TRIVIAL(info) << "[GameThread] Made new game thread";
 }
 
 //
@@ -1526,7 +1466,7 @@ void CGHost :: CreateGame( CMap *map, unsigned char gameState, bool saveGame, st
 void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 {
 	string realmName = bnet == NULL ? "SYSTEM" : "BNET: " + bnet->GetServerAlias( );
-	CONSOLE_Print( "[" + realmName + "] trying to load map  [" + MapName + "] ..." );
+	BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] trying to load map  [" + MapName + "] ...";
 
 	try
 	{
@@ -1535,7 +1475,7 @@ void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 
 		if( !boost::filesystem::exists( m_MapPath ) )
 		{
-			CONSOLE_Print( "[" + realmName + "] error listing maps - map path doesn't exist" );
+			BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] error listing maps - map path doesn't exist";
 
 			if ( !User.empty() )
 				bnet->QueueChatCommand( m_Language->ErrorListingMaps( ), User, Whisper );
@@ -1548,7 +1488,7 @@ void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 
 			if( fileList.size() == 0 )
 			{
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->NoMapsFound( ) );
+				BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] " + m_Language->NoMapsFound( );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->NoMapsFound( ), User, Whisper );
 			}
@@ -1556,7 +1496,7 @@ void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 			{
 				string File = fileList.front( ).filename( ).string( );
 				
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->LoadingConfigFile( m_MapPath + File ) );
+				BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] " + m_Language->LoadingConfigFile( m_MapPath + File );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->LoadingConfigFile( m_MapPath + File ), User, Whisper );
 
@@ -1570,7 +1510,7 @@ void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 			else
 			{
 				/*
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->FoundMaps( boost::algorithm::join(fileList, ",") ) );
+				BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] " + m_Language->FoundMaps( boost::algorithm::join(fileList, ",") );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->FoundMaps( boost::algorithm::join(fileList, ",") ), User, Whisper );
 				*/
@@ -1579,7 +1519,7 @@ void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 	}
 	catch( const exception &ex )
 	{
-		CONSOLE_Print( "[" + realmName + "] error listing maps - caught exception [" + ex.what( ) + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] error listing maps - caught exception [" + ex.what( ) + "]";
 
 		if ( !User.empty() )
 			bnet->QueueChatCommand( m_Language->ErrorListingMaps( ), User, Whisper );
@@ -1592,13 +1532,13 @@ void CGHost :: LoadMap( string MapName, CBNET *bnet, string User, bool Whisper )
 void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bool Whisper )
 {
 	string realmName = bnet == NULL ? "SYSTEM" : "BNET: " + bnet->GetServerAlias( );
-	CONSOLE_Print( "[" + realmName + "] trying to load map config  [" + MapConfigName + "] ..." );
+	BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] trying to load map config  [" + MapConfigName + "] ...";
 
 	try
 	{
 		if( !boost::filesystem::exists( m_MapCFGPath ) )
 		{
-			CONSOLE_Print( "[" + realmName + "] error listing map configs - map config path doesn't exist" );
+			BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] error listing map configs - map config path doesn't exist";
 
 			if ( !User.empty() )
 				bnet->QueueChatCommand( m_Language->ErrorListingMapConfigs( ), User, Whisper );
@@ -1611,7 +1551,7 @@ void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bo
 
 			if( fileList.size() == 0 )
 			{
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->NoMapConfigsFound( ) );
+				BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] " + m_Language->NoMapConfigsFound( );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->NoMapConfigsFound( ), User, Whisper );
 			}
@@ -1619,7 +1559,7 @@ void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bo
 			{
 				string File = fileList.front( ).filename( ).string( );
 				
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->LoadingConfigFile( m_MapCFGPath + File ) );
+				BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] " + m_Language->LoadingConfigFile( m_MapCFGPath + File );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->LoadingConfigFile( m_MapCFGPath + File ), User, Whisper );
 
@@ -1630,7 +1570,7 @@ void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bo
 			else
 			{
 				/*
-				CONSOLE_Print( "[" + realmName + "] " + m_Language->FoundMapConfigs( boost::algorithm::join(fileList, ",") ) );
+				BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] " + m_Language->FoundMapConfigs( boost::algorithm::join(fileList, ",") );
 				if ( !User.empty() )
 					bnet->QueueChatCommand( m_Language->FoundMapConfigs( boost::algorithm::join(fileList, ",") ), User, Whisper );
 				*/
@@ -1639,7 +1579,7 @@ void CGHost :: LoadMapConfig( string MapConfigName, CBNET *bnet, string User, bo
 	}
 	catch( const exception &ex )
 	{
-		CONSOLE_Print( "[" + realmName + "] error listing map configs - caught exception [" + ex.what( ) + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[" + realmName + "] error listing map configs - caught exception [" + ex.what( ) + "]";
 
 		if ( !User.empty() )
 			bnet->QueueChatCommand( m_Language->ErrorListingMapConfigs( ), User, Whisper );
@@ -1659,7 +1599,7 @@ std::vector<boost::filesystem::path> CGHost :: GetFilesInDirectory( boost::files
 
 		if( !exists( ParentDirectory ) )
 		{
-			CONSOLE_Print( "[SYSTEM] error listing map configs - map config path doesn't exist" );
+			BOOST_LOG_TRIVIAL(info) << "[SYSTEM] error listing map configs - map config path doesn't exist";
 		}
 		else
 		{
@@ -1678,7 +1618,7 @@ std::vector<boost::filesystem::path> CGHost :: GetFilesInDirectory( boost::files
 	}
 	catch( const exception &ex )
 	{
-		CONSOLE_Print( "[SYSTEM] error listing directories in folder [" + ParentDirectory.string( ) + "]" );
+		BOOST_LOG_TRIVIAL(info) << "[SYSTEM] error listing directories in folder [" + ParentDirectory.string( ) + "]";
 	}
 
 	return fileList;

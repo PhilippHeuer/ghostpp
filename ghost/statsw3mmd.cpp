@@ -32,8 +32,8 @@
 
 CStatsW3MMD :: CStatsW3MMD( CBaseGame *nGame, string nCategory ) : CStats( nGame ), m_Category( nCategory ), m_NextValueID( 0 ), m_NextCheckID( 0 )
 {
-	CONSOLE_Print( "[STATSW3MMD] using Warcraft 3 Map Meta Data stats parser version 1" );
-	CONSOLE_Print( "[STATSW3MMD] using map_statsw3mmdcategory [" + nCategory + "]" );
+	BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD] using Warcraft 3 Map Meta Data stats parser version 1";
+	BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD] using map_statsw3mmdcategory [" + nCategory + "]";
 }
 
 CStatsW3MMD :: ~CStatsW3MMD( )
@@ -76,7 +76,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 						string KeyString = string( Key.begin( ), Key.end( ) );
 						uint32_t ValueInt = UTIL_ByteArrayToUInt32( Value, false );
 
-						// CONSOLE_Print( "[STATSW3MMD] DEBUG: mkey [" + MissionKeyString + "], key [" + KeyString + "], value [" + UTIL_ToString( ValueInt ) + "]" );
+						BOOST_LOG_TRIVIAL(debug) << "[STATSW3MMD] mkey [" + MissionKeyString + "], key [" + KeyString + "], value [" + UTIL_ToString( ValueInt ) + "]";
 
 						if( MissionKeyString.size( ) > 4 && MissionKeyString.substr( 0, 4 ) == "val:" )
 						{
@@ -93,10 +93,10 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 										// Tokens[2] = minimum
 										// Tokens[3] = current
 
-										CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] map is using Warcraft 3 Map Meta Data library version [" + Tokens[3] + "]" );
+										BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] map is using Warcraft 3 Map Meta Data library version [" + Tokens[3] + "]";
 
 										if( UTIL_ToUInt32( Tokens[2] ) > 1 )
-											CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] warning - parser version 1 is not compatible with this map, minimum version [" + Tokens[2] + "]" );
+											BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] warning - parser version 1 is not compatible with this map, minimum version [" + Tokens[2] + "]";
 									}
 									else if( Tokens[1] == "pid" && Tokens.size( ) == 4 )
 									{
@@ -106,7 +106,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 										uint32_t PID = UTIL_ToUInt32( Tokens[2] );
 
 										if( m_PIDToName.find( PID ) != m_PIDToName.end( ) )
-											CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] overwriting previous name [" + m_PIDToName[PID] + "] with new name [" + Tokens[3] + "] for PID [" + Tokens[2] + "]" );
+											BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] overwriting previous name [" + m_PIDToName[PID] + "] with new name [" + Tokens[3] + "] for PID [" + Tokens[2] + "]";
 
 										m_PIDToName[PID] = Tokens[3];
 									}
@@ -119,13 +119,13 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 									// Tokens[4] = suggestion (ignored here)
 
 									if( m_DefVarPs.find( Tokens[1] ) != m_DefVarPs.end( ) )
-										CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] duplicate DefVarP [" + KeyString + "] found, ignoring" );
+										BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] duplicate DefVarP [" + KeyString + "] found, ignoring";
 									else
 									{
 										if( Tokens[2] == "int" || Tokens[2] == "real" || Tokens[2] == "string" )
 											m_DefVarPs[Tokens[1]] = Tokens[2];
 										else
-											CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown DefVarP [" + KeyString + "] found, ignoring" );
+											BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown DefVarP [" + KeyString + "] found, ignoring";
 									}
 
 								}
@@ -137,7 +137,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 									// Tokens[4] = value
 
 									if( m_DefVarPs.find( Tokens[2] ) == m_DefVarPs.end( ) )
-										CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] VarP [" + KeyString + "] found without a corresponding DefVarP, ignoring" );
+										BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] VarP [" + KeyString + "] found without a corresponding DefVarP, ignoring";
 									else
 									{
 										string ValueType = m_DefVarPs[Tokens[2]];
@@ -154,7 +154,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 													m_VarPInts[VP] += UTIL_ToInt32( Tokens[4] );
 												else
 												{
-													// CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] int VarP [" + KeyString + "] found with relative operation [+=] without a previously assigned value, ignoring" );
+													BOOST_LOG_TRIVIAL(debug) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] int VarP [" + KeyString + "] found with relative operation [+=] without a previously assigned value, ignoring";
 													m_VarPInts[VP] = UTIL_ToInt32( Tokens[4] );
 												}
 											}
@@ -164,12 +164,12 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 													m_VarPInts[VP] -= UTIL_ToInt32( Tokens[4] );
 												else
 												{
-													// CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] int VarP [" + KeyString + "] found with relative operation [-=] without a previously assigned value, ignoring" );
+													BOOST_LOG_TRIVIAL(debug) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] int VarP [" + KeyString + "] found with relative operation [-=] without a previously assigned value, ignoring";
 													m_VarPInts[VP] = -UTIL_ToInt32( Tokens[4] );
 												}
 											}
 											else
-												CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown int VarP [" + KeyString + "] operation [" + Tokens[3] + "] found, ignoring" );
+												BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown int VarP [" + KeyString + "] operation [" + Tokens[3] + "] found, ignoring";
 										}
 										else if( ValueType == "real" )
 										{
@@ -183,7 +183,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 													m_VarPReals[VP] += UTIL_ToDouble( Tokens[4] );
 												else
 												{
-													// CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] real VarP [" + KeyString + "] found with relative operation [+=] without a previously assigned value, ignoring" );
+													BOOST_LOG_TRIVIAL(debug) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] real VarP [" + KeyString + "] found with relative operation [+=] without a previously assigned value, ignoring";
 													m_VarPReals[VP] = UTIL_ToDouble( Tokens[4] );
 												}
 											}
@@ -193,12 +193,12 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 													m_VarPReals[VP] -= UTIL_ToDouble( Tokens[4] );
 												else
 												{
-													// CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] real VarP [" + KeyString + "] found with relative operation [-=] without a previously assigned value, ignoring" );
+													BOOST_LOG_TRIVIAL(debug) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] real VarP [" + KeyString + "] found with relative operation [-=] without a previously assigned value, ignoring";
 													m_VarPReals[VP] = -UTIL_ToDouble( Tokens[4] );
 												}
 											}
 											else
-												CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown real VarP [" + KeyString + "] operation [" + Tokens[3] + "] found, ignoring" );
+												BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown real VarP [" + KeyString + "] operation [" + Tokens[3] + "] found, ignoring";
 										}
 										else
 										{
@@ -207,7 +207,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 											if( Tokens[3] == "=" )
 												m_VarPStrings[VP] = Tokens[4];
 											else
-												CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown string VarP [" + KeyString + "] operation [" + Tokens[3] + "] found, ignoring" );
+												BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown string VarP [" + KeyString + "] operation [" + Tokens[3] + "] found, ignoring";
 										}
 									}
 								}
@@ -227,13 +227,13 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 										else
 										{
 											if( m_Flags.find( PID ) != m_Flags.end( ) )
-												CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] overwriting previous flag [" + m_Flags[PID] + "] with new flag [" + Tokens[2] + "] for PID [" + Tokens[1] + "]" );
+												BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] overwriting previous flag [" + m_Flags[PID] + "] with new flag [" + Tokens[2] + "] for PID [" + Tokens[1] + "]";
 
 											m_Flags[PID] = Tokens[2];
 										}
 									}
 									else
-										CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown flag [" + Tokens[2] + "] found, ignoring" );
+										BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown flag [" + Tokens[2] + "] found, ignoring";
 								}
 								else if( Tokens[0] == "DefEvent" && Tokens.size( ) >= 4 )
 								{
@@ -243,7 +243,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 									// Tokens[n+3] = format
 
 									if( m_DefEvents.find( Tokens[1] ) != m_DefEvents.end( ) )
-										CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] duplicate DefEvent [" + KeyString + "] found, ignoring" );
+										BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] duplicate DefEvent [" + KeyString + "] found, ignoring";
 									else
 									{
 										uint32_t Arguments = UTIL_ToUInt32( Tokens[2] );
@@ -258,7 +258,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 									// Tokens[2..n+2] = arguments (where n is the # of arguments in the corresponding DefEvent)
 
 									if( m_DefEvents.find( Tokens[1] ) == m_DefEvents.end( ) )
-										CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] Event [" + KeyString + "] found without a corresponding DefEvent, ignoring" );
+										BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] Event [" + KeyString + "] found without a corresponding DefEvent, ignoring";
 									else
 									{
 										vector<string> DefEvent = m_DefEvents[Tokens[1]];
@@ -268,7 +268,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 											string Format = DefEvent[DefEvent.size( ) - 1];
 
 											if( Tokens.size( ) - 2 != DefEvent.size( ) - 1 )
-												CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] Event [" + KeyString + "] found with " + UTIL_ToString( Tokens.size( ) - 2 ) + " arguments but expected " + UTIL_ToString( DefEvent.size( ) - 1 ) + " arguments, ignoring" );
+												BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] Event [" + KeyString + "] found with " + UTIL_ToString( Tokens.size( ) - 2 ) + " arguments but expected " + UTIL_ToString( DefEvent.size( ) - 1 ) + " arguments, ignoring";
 											else
 											{
 												// replace the markers in the format string with the arguments
@@ -292,12 +292,12 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 														UTIL_Replace( Format, "{" + UTIL_ToString( i ) + "}", Tokens[i + 2] );
 												}
 
-												CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] " + Format );
+												BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] " + Format;
 											}
 										}
 									}
 
-									// CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] event [" + KeyString + "]" );
+									BOOST_LOG_TRIVIAL(debug) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] event [" + KeyString + "]";
 								}
 								else if( Tokens[0] == "Blank" )
 								{
@@ -305,10 +305,10 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 								}
 								else if( Tokens[0] == "Custom" )
 								{
-									CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] custom [" + KeyString + "]" );
+									BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] custom [" + KeyString + "]";
 								}
 								else
-									CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown message type [" + Tokens[0] + "] found, ignoring" );
+									BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown message type [" + Tokens[0] + "] found, ignoring";
 							}
 
 							++m_NextValueID;
@@ -323,7 +323,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 							++m_NextCheckID;
 						}
 						else
-							CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown mission key [" + MissionKeyString + "] found, ignoring" );
+							BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unknown mission key [" + MissionKeyString + "] found, ignoring";
 
 						i += 15 + MissionKey.size( ) + Key.size( );
 					}
@@ -345,7 +345,7 @@ bool CStatsW3MMD :: ProcessAction( CIncomingAction *Action )
 
 void CStatsW3MMD :: Save( CGHost *GHost, CGHostDB *DB, uint32_t GameID )
 {
-	CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] received " + UTIL_ToString( m_NextValueID ) + "/" + UTIL_ToString( m_NextCheckID ) + " value/check messages" );
+	BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] received " + UTIL_ToString( m_NextValueID ) + "/" + UTIL_ToString( m_NextCheckID ) + " value/check messages";
 
 	if( DB->Begin( ) )
 	{
@@ -378,7 +378,7 @@ void CStatsW3MMD :: Save( CGHost *GHost, CGHostDB *DB, uint32_t GameID )
 				Flags += "practicing";
 			}
 
-			CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] recorded flags [" + Flags + "] for player [" + i->second + "] with PID [" + UTIL_ToString( i->first ) + "]" );
+			BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] recorded flags [" + Flags + "] for player [" + i->second + "] with PID [" + UTIL_ToString( i->first ) + "]";
 			GHost->m_Callables.push_back( DB->ThreadedW3MMDPlayerAdd( m_Category, GameID, i->first, i->second, m_Flags[i->first], Leaver, Practicing ) );
 		}
 
@@ -392,12 +392,12 @@ void CStatsW3MMD :: Save( CGHost *GHost, CGHostDB *DB, uint32_t GameID )
 			GHost->m_Callables.push_back( DB->ThreadedW3MMDVarAdd( GameID, m_VarPStrings ) );
 
 		if( DB->Commit( ) )
-			CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] saving data" );
+			BOOST_LOG_TRIVIAL(info) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] saving data";
 		else
-			CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unable to commit database transaction, data not saved" );
+			BOOST_LOG_TRIVIAL(warning) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unable to commit database transaction, data not saved";
 	}
 	else
-		CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unable to begin database transaction, data not saved" );
+		BOOST_LOG_TRIVIAL(warning) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] unable to begin database transaction, data not saved";
 }
 
 vector<string> CStatsW3MMD :: TokenizeKey( string key )
@@ -416,7 +416,7 @@ vector<string> CStatsW3MMD :: TokenizeKey( string key )
 				Token += '\\';
 			else
 			{
-				CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] error tokenizing key [" + key + "], invalid escape sequence found, ignoring" );
+				BOOST_LOG_TRIVIAL(warning) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] error tokenizing key [" + key + "], invalid escape sequence found, ignoring";
 				return vector<string>( );
 			}
 
@@ -428,7 +428,7 @@ vector<string> CStatsW3MMD :: TokenizeKey( string key )
 			{
 				if( Token.empty( ) )
 				{
-					CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] error tokenizing key [" + key + "], empty token found, ignoring" );
+					BOOST_LOG_TRIVIAL(warning) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] error tokenizing key [" + key + "], empty token found, ignoring";
 					return vector<string>( );
 				}
 
@@ -444,7 +444,7 @@ vector<string> CStatsW3MMD :: TokenizeKey( string key )
 
 	if( Token.empty( ) )
 	{
-		CONSOLE_Print( "[STATSW3MMD: " + m_Game->GetGameName( ) + "] error tokenizing key [" + key + "], empty token found, ignoring" );
+		BOOST_LOG_TRIVIAL(warning) << "[STATSW3MMD: " + m_Game->GetGameName( ) + "] error tokenizing key [" + key + "], empty token found, ignoring";
 		return vector<string>( );
 	}
 
