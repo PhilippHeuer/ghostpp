@@ -312,6 +312,7 @@ ENV BNET_BNLSSERVER pyro.no-ip.biz
 ENV BNET_BNLSPORT 9367
 ENV BNET_BNLSWARDENCOOKIE 2
 ENV BNET_CUSTOM_WAR3VERSION 30
+ENV BNET_CUSTOM_WAR3PATH ""
 ENV BNET_CUSTOM_EXEVERSION ""
 ENV BNET_CUSTOM_EXEVERSIONHASH ""
 ENV BNET_CUSTOM_PASSWORDHASHTYPE ""
@@ -334,6 +335,7 @@ ENV BNET2_BNLSSERVER pyro.no-ip.biz
 ENV BNET2_BNLSPORT 9367
 ENV BNET2_BNLSWARDENCOOKIE 2
 ENV BNET2_CUSTOM_WAR3VERSION 30
+ENV BNET2_CUSTOM_WAR3PATH ""
 ENV BNET2_CUSTOM_EXEVERSION ""
 ENV BNET2_CUSTOM_EXEVERSIONHASH ""
 ENV BNET2_CUSTOM_PASSWORDHASHTYPE ""
@@ -356,6 +358,7 @@ ENV BNET3_BNLSSERVER pyro.no-ip.biz
 ENV BNET3_BNLSPORT 9367
 ENV BNET3_BNLSWARDENCOOKIE 2
 ENV BNET3_CUSTOM_WAR3VERSION 30
+ENV BNET3_CUSTOM_WAR3PATH ""
 ENV BNET3_CUSTOM_EXEVERSION ""
 ENV BNET3_CUSTOM_EXEVERSIONHASH ""
 ENV BNET3_CUSTOM_PASSWORDHASHTYPE ""
@@ -378,6 +381,7 @@ ENV BNET4_BNLSSERVER pyro.no-ip.biz
 ENV BNET4_BNLSPORT 9367
 ENV BNET4_BNLSWARDENCOOKIE 2
 ENV BNET4_CUSTOM_WAR3VERSION 30
+ENV BNET4_CUSTOM_WAR3PATH ""
 ENV BNET4_CUSTOM_EXEVERSION ""
 ENV BNET4_CUSTOM_EXEVERSIONHASH ""
 ENV BNET4_CUSTOM_PASSWORDHASHTYPE ""
@@ -400,6 +404,7 @@ ENV BNET5_BNLSSERVER pyro.no-ip.biz
 ENV BNET5_BNLSPORT 9367
 ENV BNET5_BNLSWARDENCOOKIE 2
 ENV BNET5_CUSTOM_WAR3VERSION 30
+ENV BNET5_CUSTOM_WAR3PATH ""
 ENV BNET5_CUSTOM_EXEVERSION ""
 ENV BNET5_CUSTOM_EXEVERSIONHASH ""
 ENV BNET5_CUSTOM_PASSWORDHASHTYPE ""
@@ -422,6 +427,7 @@ ENV BNET6_BNLSSERVER pyro.no-ip.biz
 ENV BNET6_BNLSPORT 9367
 ENV BNET6_BNLSWARDENCOOKIE 2
 ENV BNET6_CUSTOM_WAR3VERSION 30
+ENV BNET6_CUSTOM_WAR3PATH ""
 ENV BNET6_CUSTOM_EXEVERSION ""
 ENV BNET6_CUSTOM_EXEVERSIONHASH ""
 ENV BNET6_CUSTOM_PASSWORDHASHTYPE ""
@@ -444,6 +450,7 @@ ENV BNET7_BNLSSERVER pyro.no-ip.biz
 ENV BNET7_BNLSPORT 9367
 ENV BNET7_BNLSWARDENCOOKIE 2
 ENV BNET7_CUSTOM_WAR3VERSION 30
+ENV BNET7_CUSTOM_WAR3PATH ""
 ENV BNET7_CUSTOM_EXEVERSION ""
 ENV BNET7_CUSTOM_EXEVERSIONHASH ""
 ENV BNET7_CUSTOM_PASSWORDHASHTYPE ""
@@ -466,6 +473,7 @@ ENV BNET8_BNLSSERVER pyro.no-ip.biz
 ENV BNET8_BNLSPORT 9367
 ENV BNET8_BNLSWARDENCOOKIE 2
 ENV BNET8_CUSTOM_WAR3VERSION 30
+ENV BNET8_CUSTOM_WAR3PATH ""
 ENV BNET8_CUSTOM_EXEVERSION ""
 ENV BNET8_CUSTOM_EXEVERSIONHASH ""
 ENV BNET8_CUSTOM_PASSWORDHASHTYPE ""
@@ -488,6 +496,7 @@ ENV BNET9_BNLSSERVER pyro.no-ip.biz
 ENV BNET9_BNLSPORT 9367
 ENV BNET9_BNLSWARDENCOOKIE 2
 ENV BNET9_CUSTOM_WAR3VERSION 30
+ENV BNET9_CUSTOM_WAR3PATH ""
 ENV BNET9_CUSTOM_EXEVERSION ""
 ENV BNET9_CUSTOM_EXEVERSIONHASH ""
 ENV BNET9_CUSTOM_PASSWORDHASHTYPE ""
@@ -510,6 +519,7 @@ ENV BNET10_BNLSSERVER pyro.no-ip.biz
 ENV BNET10_BNLSPORT 9367
 ENV BNET10_BNLSWARDENCOOKIE 2
 ENV BNET10_CUSTOM_WAR3VERSION 30
+ENV BNET10_CUSTOM_WAR3PATH ""
 ENV BNET10_CUSTOM_EXEVERSION ""
 ENV BNET10_CUSTOM_EXEVERSIONHASH ""
 ENV BNET10_CUSTOM_PASSWORDHASHTYPE ""
@@ -551,10 +561,24 @@ RUN echo "Configuration ..." &&\
 	curl -o /opt/ghostpp/GeoIP.dat.gz http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz &&\
 	gunzip /opt/ghostpp/GeoIP.dat.gz &&\ 
 	mv /opt/ghostpp/GeoIP.dat /opt/ghostpp/geoip.dat &&\
-	# War3 Data
+	# War 3 Data
+	## Live
+	mkdir -p /opt/ghostpp/war3 &&\
 	curl -o "/opt/ghostpp/war3/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/Warcraft%20III.exe?inline=false &&\
 	curl -o "/opt/ghostpp/war3/scripts.zip" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/scripts.zip?inline=false &&\
 	unzip /opt/ghostpp/war3/scripts.zip -d /opt/ghostpp/war3 &&\
+	## PTR
+	mkdir -p /opt/ghostpp/war3/ptr &&\
+	curl -o "/opt/ghostpp/war3/ptr/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/ptr/Warcraft%20III.exe?inline=false &&\
+	curl -o "/opt/ghostpp/war3/ptr/scripts.zip" https://gitlab.com/PhilippHeuer/war3-data/raw/master/ptr/scripts.zip?inline=false &&\
+	unzip /opt/ghostpp/war3/ptr/scripts.zip -d /opt/ghostpp/war3/ptr &&\
+	## Eurobattle
+	mkdir -p /opt/ghostpp/war3/eurobattle &&\
+	curl -o "/opt/ghostpp/war3/eurobattle/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/eurobattle/Warcraft%20III.exe?inline=false &&\
+	curl -o "/opt/ghostpp/war3/eurobattle/Storm.dll" https://gitlab.com/PhilippHeuer/war3-data/raw/master/eurobattle/Storm.dll?inline=false &&\
+	curl -o "/opt/ghostpp/war3/eurobattle/Game.dll" https://gitlab.com/PhilippHeuer/war3-data/raw/master/eurobattle/Game.dll?inline=false &&\
+	curl -o "/opt/ghostpp/war3/eurobattle/scripts.zip" https://gitlab.com/PhilippHeuer/war3-data/raw/master/eurobattle/scripts.zip?inline=false &&\
+	unzip /opt/ghostpp/war3/eurobattle/scripts.zip -d /opt/ghostpp/war3/eurobattle &&\
 	# Permissions
 	chmod +x /usr/local/bin/ghostpp.sh &&\
 	chmod +x /opt/ghostpp/ghost++

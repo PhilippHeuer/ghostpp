@@ -46,7 +46,7 @@ using namespace boost :: filesystem;
 // CBNET
 //
 
-CBNET :: CBNET( CGHost *nGHost, string nServer, string nServerAlias, string nBNLSServer, uint16_t nBNLSPort, uint32_t nBNLSWardenCookie, string nCDKeyROC, string nCDKeyTFT, string nCountryAbbrev, string nCountry, uint32_t nLocaleID, string nUserName, string nUserPassword, string nFirstChannel, string nRootAdmin, char nCommandTrigger, bool nHoldFriends, bool nHoldClan, bool nPublicCommands, unsigned char nWar3Version, BYTEARRAY nEXEVersion, BYTEARRAY nEXEVersionHash, string nPasswordHashType, string nPVPGNRealmName, uint32_t nMaxMessageLength, uint32_t nHostCounterID )
+CBNET :: CBNET( CGHost *nGHost, string nServer, string nServerAlias, string nBNLSServer, uint16_t nBNLSPort, uint32_t nBNLSWardenCookie, string nCDKeyROC, string nCDKeyTFT, string nCountryAbbrev, string nCountry, uint32_t nLocaleID, string nUserName, string nUserPassword, string nFirstChannel, string nRootAdmin, char nCommandTrigger, bool nHoldFriends, bool nHoldClan, bool nPublicCommands, unsigned char nWar3Version, string nWar3PathCustom, BYTEARRAY nEXEVersion, BYTEARRAY nEXEVersionHash, string nPasswordHashType, string nPVPGNRealmName, uint32_t nMaxMessageLength, uint32_t nHostCounterID )
 {
 	// todotodo: append path seperator to Warcraft3Path if needed
 
@@ -114,6 +114,7 @@ CBNET :: CBNET( CGHost *nGHost, string nServer, string nServerAlias, string nBNL
 	transform( m_RootAdmin.begin( ), m_RootAdmin.end( ), m_RootAdmin.begin( ), (int(*)(int))tolower );
 	m_CommandTrigger = nCommandTrigger;
 	m_War3Version = nWar3Version;
+	m_War3PathCustom = nWar3PathCustom;
 	m_EXEVersion = nEXEVersion;
 	m_EXEVersionHash = nEXEVersionHash;
 	m_PasswordHashType = nPasswordHashType;
@@ -808,7 +809,15 @@ void CBNET :: ProcessPackets( )
 					
 					if ( m_BNCSUtil->GetEXEVersion().size( ) != 4 && m_BNCSUtil->GetEXEVersionHash().size( ) != 4 )
 					{
-						if( m_BNCSUtil->AutoDiscoverExeInformation( m_War3Version, m_GHost->m_Warcraft3Path, m_Protocol->GetIX86VerFileNameString( ), m_Protocol->GetValueStringFormulaString( ) ) )
+						// custom path
+						string customPath = m_GHost->m_Warcraft3Path;
+						if ( !m_War3PathCustom.empty( ) )
+						{
+							customPath = m_GHost->m_Warcraft3Path + m_War3PathCustom;
+						}
+
+						// auto discovery
+						if( m_BNCSUtil->AutoDiscoverExeInformation( m_War3Version, customPath, m_Protocol->GetIX86VerFileNameString( ), m_Protocol->GetValueStringFormulaString( ) ) )
 						{
 							// used auto discovoery
 							BOOST_LOG_TRIVIAL(info) << "[BNET: " + m_ServerAlias + "] auto discovery of custom_exeversion resulted in [" + UTIL_ByteArrayToDecString( m_BNCSUtil->GetEXEVersion( ) ) + "]";

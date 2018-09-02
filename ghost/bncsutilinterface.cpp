@@ -72,14 +72,9 @@ bool CBNCSUtilInterface :: HELP_SID_AUTH_CHECK( bool TFT, string keyROC, string 
 bool CBNCSUtilInterface :: AutoDiscoverExeInformation( uint32_t war3Version, string war3Path, string mpqFileName, string valueStringFormula )
 {
 	// set m_EXEVersion, m_EXEVersionHash, m_EXEInfo
-
-	string FileWar3EXE = war3Path + "Warcraft III.exe";
-
-	if( !UTIL_FileExists( FileWar3EXE ) )
-		FileWar3EXE = war3Path + "warcraft.exe";
-
 	bool MissingFile = false;
 
+	string FileWar3EXE = war3Path + "Warcraft III.exe";
 	if( !UTIL_FileExists( FileWar3EXE ) )
 	{
 		BOOST_LOG_TRIVIAL(error) << "[GHOST] unable to open [" + FileWar3EXE + "]";
@@ -87,22 +82,16 @@ bool CBNCSUtilInterface :: AutoDiscoverExeInformation( uint32_t war3Version, str
 	}
 
 	string FileStormDLL, FileGameDLL;
-
 	if( war3Version <= 28 )
 	{
 		FileStormDLL = war3Path + "Storm.dll";
-
-		if( !UTIL_FileExists( FileStormDLL ) )
-			FileStormDLL = war3Path + "storm.dll";
-
-		FileGameDLL = war3Path + "game.dll";
-
 		if( !UTIL_FileExists( FileStormDLL ) )
 		{
 			BOOST_LOG_TRIVIAL(error) << "[GHOST] unable to open [" + FileStormDLL + "]";
 			MissingFile = true;
 		}
 
+		FileGameDLL = war3Path + "Game.dll";
 		if( !UTIL_FileExists( FileGameDLL ) )
 		{
 			BOOST_LOG_TRIVIAL(error) << "[GHOST] unable to open [" + FileGameDLL + "]";
