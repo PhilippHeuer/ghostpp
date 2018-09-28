@@ -564,8 +564,8 @@ RUN echo "Configuration ..." &&\
 	# War 3 Data
 	## Live
 	mkdir -p /opt/ghostpp/war3 &&\
-	curl -o "/opt/ghostpp/war3/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/Warcraft%20III.exe?inline=false &&\
-	curl -o "/opt/ghostpp/war3/scripts.zip" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.0/scripts.zip?inline=false &&\
+	curl -o "/opt/ghostpp/war3/Warcraft III.exe" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.1/Warcraft%20III.exe?inline=false &&\
+	curl -o "/opt/ghostpp/war3/scripts.zip" https://gitlab.com/PhilippHeuer/war3-data/raw/master/1.30.1/scripts.zip?inline=false &&\
 	unzip /opt/ghostpp/war3/scripts.zip -d /opt/ghostpp/war3 &&\
 	## PTR
 	mkdir -p /opt/ghostpp/war3/ptr &&\
